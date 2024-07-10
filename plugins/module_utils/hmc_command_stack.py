@@ -45,7 +45,10 @@ class HmcCommandStack():
                'LSSYSCONN': 'lssysconn',
                'LSHMCLDAP': 'lshmcldap',
                'CHHMCLDAP': 'chhmcldap',
-               'LSUPDHMC': 'lsupdhmc',
+               'LSVIOSBK': 'lsviosbk',
+               'MKVIOSBK': 'mkviosbk',
+               'RSTVIOSBK': 'rstviosbk',
+               'RMVIOSBK': 'rmviosbk'
                }
 
     HMC_CMD_OPT = {'LSHMC': {'-N': ' -n ',
@@ -125,14 +128,12 @@ class HmcCommandStack():
                                    '-K': ' -k ',
                                    '-L': ' -l ',
                                    '-O': ' -o '},
-                   'LSUPDHMC': {'-T': {'IBMWEBSITE': ' -t ibmwebsite '}},
                    'UPDHMC': {'-T': {'DISK': ' -t disk ',
                                      'DVD': ' -t dvd ',
                                      'FTP': ' -t ftp ',
                                      'SFTP': ' -t sftp ',
                                      'NFS': ' -t nfs ',
-                                     'USB': ' -t usb ',
-                                     'IBMWEBSITE': ' -t ibmwebsite '},
+                                     'USB': ' -t usb '},
                               '-F': ' -f ',
                               '-R': ' -r ',
                               '-C': ' -c ',
@@ -143,8 +144,7 @@ class HmcCommandStack():
                               '--PASSWD': ' --passwd ',
                               '-K': ' -k ',
                               '-L': ' -l ',
-                              '-O': ' -o ',
-                              '--PTF': ' --ptf '},
+                              '-O': ' -o '},
                    'SAVEUPGDATA': {'-R': {'DISK': ' -r disk ', 'DISKUSB': ' -r diskusb ', 'DISKFTP': ' -r diskftp ', 'DISKSFTP': ' -r disksftp '},
                                    '-H': ' -h ',
                                    '-U': ' -u ',
@@ -424,6 +424,14 @@ class HmcCommandStack():
                                  'GROUPATTRIBUTE': ' --groupattribute',
                                  'MEMBERATTRIBUTE': ' --memberattribute'
                                  },
+                   'LSVIOSBK': {'--FILTER': {'VIOS_NAMES': 'vios_names',
+                                             'SYS_NAMES': 'sys_names',
+                                             'TYPES': 'types',
+                                             'VIOS_UUIDS': 'vios_uuids',
+                                             'VIOS_IDS': 'vios_ids'}},
+                   'MKVIOSBK': {'-T': ' -t ', '-M': ' -m ', '-P': ' -p ', '-F': ' -f ', '-A': '-a ', '--ID': '--id ', '--UUID': '--uuid '},
+                   'RSTVIOSBK': {'-T': ' -t ', '-M': ' -m ', '-P': ' -p ', '-F': ' -f ', '--ID': '--id ', '--UUID': '--uuid ', '-R': '-r '},
+                   'RMVIOSBK': {'-T': ' -t ', '-M': ' -m ', '-P': ' -p ', '-F': ' -f ', '--ID': '--id ', '--UUID': '--uuid '}
                    }
 
     def filterBuilder(self, cmdKey, configOptionsDict):
