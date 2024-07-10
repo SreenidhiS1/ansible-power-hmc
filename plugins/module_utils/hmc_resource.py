@@ -565,6 +565,64 @@ class Hmc():
             rmhmcusrCmd += self.OPT['RMHMCUSR']['-T'][rm_type.upper()]
         self.hmcconn.execute(rmhmcusrCmd)
 
+    def listViosbk(self, filt=None):
+        listViosBk = self.CMD['LSVIOSBK']
+        if filt:
+            listViosBk += self.cmdClass.filterBuilder('LSVIOSBK', filt)
+        result = self.hmcconn.execute(listViosBk)
+        if 'No results were found' in result:
+            return []
+        return self.cmdClass.parseMultiLineCSV(result)
+
+    def createViosBk(self, configDict=None, enable=False, modify_type=None):
+        optional = ['nimol_resource', 'media_repository', 'volume_group_structure']
+        opt = []
+        output = ""
+        for each in optional:
+            if configDict.get(each) is not None:
+                opt.append(f"{each}={configDict[each]}")
+        output = ','.join(opt)
+        viosbk_cmd = self.CMD['MKVIOSBK'] + \
+            self.OPT['MKVIOSBK']['-T'] + configDict['types'] + \
+            self.OPT['MKVIOSBK']['-M'] + configDict['system'] + \
+            self.OPT['MKVIOSBK']['-F'] + configDict['backup_name'] + " "
+        if  configDict['vios_name'] != None:
+            viosbk_cmd += self.OPT['MKVIOSBK']['-P'] + configDict['vios_name'] + " "
+        elif configDict['id'] != None:
+            viosbk_cmd += self.OPT['MKVIOSBK']['--ID'] + configDict['id'] + " "
+        elif configDict['uuid'] != None:
+            viosbk_cmd += self.OPT['MKVIOSBK']['--UUID'] + configDict['uuid'] + " "  
+        if output != "":
+            viosbk_cmd += self.OPT['MKVIOSBK']['-A'] + '"' + output + '"'
+        return self.hmcconn.execute(viosbk_cmd)
+
+    def restoreViosBk(self, configDict=None, enable=False, modify_type=None):
+        restore_cmd = self.CMD['RSTVIOSBK'] + \
+            self.OPT['RSTVIOSBK']['-T'] + configDict['types'] + \
+            self.OPT['RSTVIOSBK']['-M'] + configDict['system'] + \
+            self.OPT['RSTVIOSBK']['-F'] + configDict['backup_name'] + " "
+        if  configDict['vios_name'] != None:
+            restore_cmd += self.OPT['RSTVIOSBK']['-P'] + configDict['vios_name'] + " "
+        elif configDict['id'] != None:
+            restore_cmd += self.OPT['RSTVIOSBK']['--ID'] + configDict['id'] + " "
+        elif configDict['uuid'] != None:
+            restore_cmd += self.OPT['RSTVIOSBK']['--UUID'] + configDict['uuid'] + " "
+        if configDict['restart'] != None:
+            restore_cmd += self.OPT['RSTVIOSBK']['-R']
+    
+    def removeViosBk(self, configDict=None, enable=False, modify_type=None):
+        rmviosbk_cmd = self.CMD['RMVIOSBK'] + \
+            self.OPT['RMVIOSBK']['-T'] + configDict['types'] + \
+            self.OPT['RMVIOSBK']['-M'] + configDict['system'] + \
+            self.OPT['RMVIOSBK']['-F'] + configDict['backup_name'] + " "
+        if  configDict['vios_name'] != None:
+            rmviosbk_cmd += self.OPT['MKVIOSBK']['-P'] + configDict['vios_name']
+        elif configDict['id'] != None:
+            rmviosbk_cmd += self.OPT['MKVIOSBK']['--ID'] + configDict['id']
+        elif configDict['uuid'] != None:
+            rmviosbk_cmd += self.OPT['MKVIOSBK']['--UUID'] + configDict['uuid']
+        return self.hmcconn.execute(rmviosbk_cmd)
+
     def checkForOSToBootUpFully(self, system_name, name, timeoutInMin=60):
         POLL_INTERVAL_IN_SEC = 30
         WAIT_UNTIL_IN_SEC = timeoutInMin * 60 - 600
