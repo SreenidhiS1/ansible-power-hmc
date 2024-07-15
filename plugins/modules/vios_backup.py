@@ -36,17 +36,25 @@ def validate_sub_params(params):
     if opr in ['present', 'restore']:
         params = params['attributes']
         mandatoryList = ['types', 'system', 'backup_name']
-        if opr == 'present':
-            count = sum(x is not None for x in [params['id'], params['uuid'], params['vios_name']])
-            if count == 0:
-                raise ParameterError("Missing parameter for vios details is missing")
-            if count!= 1:
-                raise ParameterError("Parameters 'id', 'uuid' and 'vios_name' are mutually exclusive")
-        
-            if params['nimol_resource'] != None or params['media_repository'] != None or params['volume_group_structure'] != None:
+        unsupportedList = ['restart']
+    if opr == 'restore':
+        params = params['attributes']
+        mandatoryList = ['types', 'system', 'backup_name']
+        unsupportedList = ['restart', 'nimol_resource', 'media_repository', 'volume_group_structure', 'file_list']
+    if opr == 'absent':
+        params = params['attributes']
+        mandatoryList = ['types', 'system', 'file_list']
+        unsupportedList = ['restart', 'nimol_resource', 'media_repository', 'volume_group_structure', 'backup_name']
+    if opr in ['present', 'restore', 'absent']:
+        count = sum(x is not None for x in [params['id'], params['uuid'], params['vios_name']])
+        if count == 0:
+           raise ParameterError("Missing parameter for vios details is missing")
+        if count!= 1:
+            raise ParameterError("Parameters 'id', 'uuid' and 'vios_name' are mutually exclusive")
+    if opr == 'present':
+        if params['nimol_resource'] != None or params['media_repository'] != None or params['volume_group_structure'] != None:
                 if params['types'] != 'vios':
-                    raise ParameterError("Parameters 'nimol_resource', 'media_repository' and 'volume_group_structure' are valid for only full VIOS backup") 
-
+                    raise ParameterError("Parameters 'nimol_resource', 'media_repository' and 'volume_group_structure' are valid for only full VIOS backup")
     collate = []
     for eachMandatory in mandatoryList:
         if not params[eachMandatory]:
@@ -215,8 +223,6 @@ def ensure_restore(module, params):
             vios_list = list(hmc_conn.execute("lssyscfg -r lpar -m {0} -F lpar_id".format(m_system)).splitlines())
         elif attributes['uuid'] != None:
             vios_list = list(hmc_conn.execute("lssyscfg -r lpar -m {0} -F uuid".format(m_system)).splitlines())
-        logger.debug("vios list")
-        logger.debug(vios_list)
         if vios_name not in vios_list:
             module.fail_json(msg="The vios is not available in the managed system")
         else:
@@ -283,8 +289,6 @@ def ensure_absent(module, params):
             file_list = attributes['file_list']
             removed_list = []
             for each in file_list[:]:
-                logger.debug("Each")
-                logger.debug(each)
                 if each not in backup_list:
                     removed_list.append(each)
                     file_list.remove(each)
@@ -296,7 +300,6 @@ def ensure_absent(module, params):
             try: 
                 hmc.removeViosBk(configDict=attributes)
             except HmcError as error:
-                logger.debug("errored here")
                 if USER_AUTHORITY_ERR in repr(error):
                     logger.debug(repr(error))
                     return False, None, None
