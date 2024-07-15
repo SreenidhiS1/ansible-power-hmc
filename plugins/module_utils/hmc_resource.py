@@ -609,6 +609,7 @@ class Hmc():
             restore_cmd += self.OPT['RSTVIOSBK']['--UUID'] + configDict['uuid'] + " "
         if configDict['restart'] != None:
             restore_cmd += self.OPT['RSTVIOSBK']['-R']
+        self.hmcconn.execute(restore_cmd)
     
     def removeViosBk(self, configDict=None, enable=False, modify_type=None):
         rmviosbk_cmd = self.CMD['RMVIOSBK'] + \
