@@ -308,6 +308,66 @@ def ensure_absent(module, params):
             changed = True
             return changed, None, None
 
+def ensure_modify(module, params):
+    hmc_host = params['hmc_host']
+    hmc_user = params['hmc_auth']['username']
+    password = params['hmc_auth']['password']
+    filter_d = {}
+
+    validate_parameters(params)
+    attributes = params.get('attributes')
+    hmc_conn = HmcCliConnection(module, hmc_host, hmc_user, password)
+    hmc = Hmc(hmc_conn)
+    
+    vios_name = attributes['vios_name'] or attributes['id'] or attributes['uuid']
+    m_system = attributes['system']
+    sys_list = (
+    hmc_conn.execute("lssyscfg -r sys -F name").splitlines() +
+    hmc_conn.execute("lssyscfg -r sys -F type_model*serial_num").splitlines()
+    )
+    if m_system not in sys_list:
+        module.fail_json(msg="The managed system is not available in HMC")
+    else:
+        if attributes['vios_name'] != None:
+            vios_list = list(hmc_conn.execute("lssyscfg -r lpar -m {0} -F name".format(m_system)).splitlines())
+        elif attributes['id'] != None:
+            vios_list = list(hmc_conn.execute("lssyscfg -r lpar -m {0} -F lpar_id".format(m_system)).splitlines())
+        elif attributes['uuid'] != None:
+            vios_list = list(hmc_conn.execute("lssyscfg -r lpar -m {0} -F uuid".format(m_system)).splitlines())
+        if vios_name not in vios_list:
+            module.fail_json(msg="The vios is not available in the managed system")
+        else:
+            if attributes['vios_name'] != None:
+                filter_d = {"VIOS_NAMES": attributes['vios_name'],"SYS_NAMES": attributes['system'],"TYPES": attributes['types']}
+            elif attributes['id'] != None:
+                filter_d = {"VIOS_IDS": attributes['id'],"SYS_NAMES": attributes['system'],"TYPES": attributes['types']}
+            elif attributes['uuid'] != None:
+                filter_d = {"VIOS_UUIDS": attributes['uuid'],"SYS_NAMES": attributes['system'],"TYPES": attributes['types']}            
+            backup_list = hmc.listViosbk(filter_d)
+            backup_list = [item['NAME'] for item in backup_list]
+            file_list = attributes['file_list']
+            removed_list = []
+            for each in file_list[:]:
+                if each not in backup_list:
+                    removed_list.append(each)
+                    file_list.remove(each)
+            if len(file_list) != 0:
+                attributes['backup_name'] = ','.join(map(str, file_list))
+            else:
+                msg = "Specified backup files are not available"
+                return None, None, msg
+            try: 
+                hmc.modifyViosBk(configDict=attributes)
+            except HmcError as error:
+                if USER_AUTHORITY_ERR in repr(error):
+                    logger.debug(repr(error))
+                    return False, None, None
+                else:
+                    raise          
+            changed = True
+            return changed, None, None
+
+
 def perform_task(module):
     params = module.params
     actions = {
@@ -315,6 +375,7 @@ def perform_task(module):
         "present": ensure_present,
         "restore": ensure_restore,
         "absent": ensure_absent,
+        "modify": ensure_modify,
     }
 
     if not params['hmc_auth']:
@@ -354,7 +415,8 @@ def run_module():
                             nimol_resource=dict(type='int', choices=[0,1]),
                             media_repository=dict(type='int', choices=[0,1]),
                             volume_group_structure=dict(type='int', choices=[0,1]),
-                            restart=dict(type='bool')
+                            restart=dict(type='bool'),
+                            new_name=dict(type='str')
                         )
                         ),
     )
