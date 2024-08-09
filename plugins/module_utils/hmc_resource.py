@@ -636,7 +636,7 @@ class Hmc():
             modviosbk_cmd += self.OPT['CHVIOSBK']['--ID'] + configDict['id']
         elif configDict['uuid'] != None:
             modviosbk_cmd += self.OPT['CHVIOSBK']['--UUID'] + configDict['uuid']
-        modviosbk_cmd += self.OPT['CHVIOSBK']['-A'] + "'new_name=" + configDict['new_name'] + "'"
+        modviosbk_cmd += " " + self.OPT['CHVIOSBK']['-A'] + "'new_name=" + configDict['new_name'] + "'"
         return self.hmcconn.execute(modviosbk_cmd)
 
     def checkForOSToBootUpFully(self, system_name, name, timeoutInMin=60):
