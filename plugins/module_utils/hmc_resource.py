@@ -624,6 +624,21 @@ class Hmc():
             rmviosbk_cmd += self.OPT['MKVIOSBK']['--UUID'] + configDict['uuid']
         return self.hmcconn.execute(rmviosbk_cmd)
 
+    def modifyViosBk(self, configDict=None, enable=False, modify_type=None):
+        modviosbk_cmd = self.CMD['CHVIOSBK'] + \
+            self.OPT['CHVIOSBK']['-T'] + configDict['types'] + \
+            self.OPT['CHVIOSBK']['-M'] + configDict['system'] + \
+            self.OPT['CHVIOSBK']['-F'] + configDict['backup_name'] + " "
+        modviosbk_cmd += self.OPT['CHVIOSBK']['-O'] + "s "
+        if  configDict['vios_name'] != None:
+            modviosbk_cmd += self.OPT['CHVIOSBK']['-P'] + configDict['vios_name']
+        elif configDict['id'] != None:
+            modviosbk_cmd += self.OPT['CHVIOSBK']['--ID'] + configDict['id']
+        elif configDict['uuid'] != None:
+            modviosbk_cmd += self.OPT['CHVIOSBK']['--UUID'] + configDict['uuid']
+        modviosbk_cmd += self.OPT['CHVIOSBK']['-A'] + "'new_name=" + configDict['new_name'] + "'"
+        return self.hmcconn.execute(modviosbk_cmd)
+
     def checkForOSToBootUpFully(self, system_name, name, timeoutInMin=60):
         POLL_INTERVAL_IN_SEC = 30
         WAIT_UNTIL_IN_SEC = timeoutInMin * 60 - 600
