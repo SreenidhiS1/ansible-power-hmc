@@ -46,7 +46,7 @@ def validate_sub_params(params):
         mandatoryList = ['types', 'system', 'file_list']
         unsupportedList = ['restart', 'nimol_resource', 'media_repository', 'volume_group_structure', 'backup_name','new_name']
     if opr == 'modify':
-        params = params['attributes']
+        params = params['attributes','new_name']
         mandatoryList = ['types', 'system', 'file_list']
         unsupportedList = ['restart', 'nimol_resource', 'media_repository', 'volume_group_structure', 'file_list']
 
