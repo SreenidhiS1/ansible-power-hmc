@@ -6,7 +6,7 @@ Command_output:
 '''
 
 import logging
-LOG_FILENAME = "/tmp/ansible_power_hmc_vios.log"
+LOG_FILENAME = "/tmp/ansible_power_hmc_vios_backup.log"
 logger = logging.getLogger(__name__)
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ibm.power_hmc.plugins.module_utils.hmc_cli_client import HmcCliConnection
@@ -46,8 +46,8 @@ def validate_sub_params(params):
         mandatoryList = ['types', 'system', 'file_list']
         unsupportedList = ['restart', 'nimol_resource', 'media_repository', 'volume_group_structure', 'backup_name','new_name']
     if opr == 'modify':
-        params = params['attributes','new_name']
-        mandatoryList = ['types', 'system', 'file_list']
+        params = params['attributes']
+        mandatoryList = ['types', 'system', 'backup_name', 'new_name']
         unsupportedList = ['restart', 'nimol_resource', 'media_repository', 'volume_group_structure', 'file_list']
 
     if opr in ['present', 'restore', 'absent','modify']:
@@ -349,11 +349,15 @@ def ensure_modify(module, params):
             elif attributes['uuid'] != None:
                 filter_d = {"VIOS_UUIDS": attributes['uuid'],"SYS_NAMES": attributes['system'],"TYPES": attributes['types']}            
             backup_list = hmc.listViosbk(filter_d)
+            backup_list = [item['NAME'] for item in backup_list]
+            logger.debug(filter_d)
+            logger.debug(backup_list)
             if attributes['backup_name'] not in backup_list:
                 msg = "Specified backup files are not available"
                 return None, None, msg
             else:
                 try:
+                    logger.debug("Reached here")
                     hmc.modifyViosBk(configDict=attributes)
                 except HmcError as error:
                     if USER_AUTHORITY_ERR in repr(error):
