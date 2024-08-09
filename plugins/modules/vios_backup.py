@@ -36,16 +36,21 @@ def validate_sub_params(params):
     if opr in ['present', 'restore']:
         params = params['attributes']
         mandatoryList = ['types', 'system', 'backup_name']
-        unsupportedList = ['restart']
+        unsupportedList = ['restart','new_name']
     if opr == 'restore':
         params = params['attributes']
         mandatoryList = ['types', 'system', 'backup_name']
-        unsupportedList = ['restart', 'nimol_resource', 'media_repository', 'volume_group_structure', 'file_list']
+        unsupportedList = ['restart', 'nimol_resource', 'media_repository', 'volume_group_structure', 'file_list','new_name']
     if opr == 'absent':
         params = params['attributes']
         mandatoryList = ['types', 'system', 'file_list']
-        unsupportedList = ['restart', 'nimol_resource', 'media_repository', 'volume_group_structure', 'backup_name']
-    if opr in ['present', 'restore', 'absent']:
+        unsupportedList = ['restart', 'nimol_resource', 'media_repository', 'volume_group_structure', 'backup_name','new_name']
+    if opr == 'modify':
+        params = params['attributes']
+        mandatoryList = ['types', 'system', 'file_list']
+        unsupportedList = ['restart', 'nimol_resource', 'media_repository', 'volume_group_structure', 'file_list']
+
+    if opr in ['present', 'restore', 'absent','modify']:
         count = sum(x is not None for x in [params['id'], params['uuid'], params['vios_name']])
         if count == 0:
            raise ParameterError("Missing parameter for vios details is missing")
@@ -344,20 +349,12 @@ def ensure_modify(module, params):
             elif attributes['uuid'] != None:
                 filter_d = {"VIOS_UUIDS": attributes['uuid'],"SYS_NAMES": attributes['system'],"TYPES": attributes['types']}            
             backup_list = hmc.listViosbk(filter_d)
-            backup_list = [item['NAME'] for item in backup_list]
-            file_list = attributes['file_list']
-            removed_list = []
-            for each in file_list[:]:
-                if each not in backup_list:
-                    removed_list.append(each)
-                    file_list.remove(each)
-            if len(file_list) != 0:
-                attributes['backup_name'] = ','.join(map(str, file_list))
-            else:
+            if attributes['backup_name'] not in backup_list:
                 msg = "Specified backup files are not available"
                 return None, None, msg
-            try: 
-                hmc.modifyViosBk(configDict=attributes)
+            else:
+                try:
+                    hmc.modifyViosBk(configDict=attributes)
             except HmcError as error:
                 if USER_AUTHORITY_ERR in repr(error):
                     logger.debug(repr(error))
@@ -402,7 +399,7 @@ def run_module():
                           password=dict(type='str', no_log=True),
                       )
                       ),
-        state=dict(type='str',choices=['facts','present', 'restore', 'absent']),
+        state=dict(type='str',choices=['facts','present', 'restore', 'absent','modify']),
         attributes=dict(type='dict',
                         options=dict(
                             types=dict(type='str',choices=['viosioconfig', 'vios', 'ssp']),
