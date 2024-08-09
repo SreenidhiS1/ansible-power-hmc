@@ -355,14 +355,14 @@ def ensure_modify(module, params):
             else:
                 try:
                     hmc.modifyViosBk(configDict=attributes)
-            except HmcError as error:
-                if USER_AUTHORITY_ERR in repr(error):
-                    logger.debug(repr(error))
-                    return False, None, None
-                else:
-                    raise          
-            changed = True
-            return changed, None, None
+                except HmcError as error:
+                    if USER_AUTHORITY_ERR in repr(error):
+                        logger.debug(repr(error))
+                        return False, None, None
+                    else:
+                        raise          
+                changed = True
+                return changed, None, None
 
 
 def perform_task(module):
