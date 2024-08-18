@@ -1,3 +1,137 @@
+#!/usr/bin/python
+
+# Copyright: (c) 2018- IBM, Inc
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+
+from __future__ import absolute_import, division, print_function
+__metaclass__ = type
+ANSIBLE_METADATA = {
+    'metadata_version': '1.1',
+    'status': ['preview'],
+    'supported_by': 'community'
+}
+
+DOCUMENTATION = '''
+---
+module: hmc_user
+author:
+    - Anil Vijayan(@AnilVijayan)
+    - Navinakumar Kandaur(@nkandak1)
+short_description: Manage the vios backup
+notes:
+    - All Operations support passwordless authentication.
+description:
+    - Create a VIOS backup file
+    - List VIOS backup file details
+    - Modify the name of the VIOS backup file
+    - Remove a VIOS backup file
+    - Restore a VIOS backup
+version_added: 1.0.0
+options:
+    hmc_host:
+        description:
+            - The IP address or hostname of the HMC.
+        required: true
+        type: str
+    hmc_auth:
+        description:
+            - Username and Password credential of the HMC.
+        required: true
+        type: dict
+        suboptions:
+            username:
+                description:
+                    - Username of the HMC to login.
+                required: true
+                type: str
+            password:
+                description:
+                    - Password of the HMC.
+                type: str
+    attributes:
+        description:
+            - Configuration parameters required for VIOS backup and restore.
+        required: false
+        type: dict
+        suboptions:
+            types:
+                description:
+                    - The type of VIOS backup to create.
+                    - Valid values are C(viosioconfig)for a VIOS I/O configuration backup,
+                      C(vios) for a full VIOS backup, C(ssp) for a Shared Storage Pool configuration backup.
+                type: str
+                required: true
+                choices: ['vios', 'viosioconfig', 'ssp']
+            system:
+                description:
+                    - The name of the managed system which has the VIOS to back up.
+                type: str
+            vios_id:
+                description:
+                    - The ID of the VIOS to back up.
+                      vios_id, vios_uuid, vios_name are mutually exclusive.
+                type: str
+            vios_uuid:
+                description:
+                    - The UUID of the VIOS to back up.
+                      vios_id, vios_uuid, vios_name are mutually exclusive.
+                type: str
+            vios_name:
+                description:
+                    - The name of the VIOS to back up.
+                      vios_id, vios_uuid, vios_name are mutually exclusive.
+                type: str
+            backup_name:
+                description:
+                    - The name of the file where the backup will be saved.
+                type: str
+            file_list:
+                description:
+                    - The list of the backup files that needs to be removed.
+                      This option is for C(remove) state only.
+                      Add backup file name as comma seperated values.
+                type: list
+            nimol_resource:
+                description:
+                    - Option to include the NIMOL resources.
+                      Value can be either 1(include) or 0(not include)
+                      This option is only valid when creating a full VIOS backup.
+                type: int
+            media_repository:
+                description:
+                    - Option to include the contents of the media repository.
+                      Value can be either 1(include) or 0(not include)
+                      This option is only valid when creating a full VIOS backup.
+                type: int
+            volume_group_structure:
+                description:
+                    - Option to include the volume groups structure of user.
+                      Value can be either 1(include) or 0(not include)
+                      This option is only valid when creating a full VIOS backup.
+                type: int
+            restart:
+                description:
+                    - Specify this option to restart the VIOS if required.
+                      Valid for C(restore) state only.
+                type: bool
+            new_name:
+                description:
+                    - The attributes to change the name of the backup file.
+                      Valid for C(modify) state only.
+                type: str
+            
+    state:
+        description:
+            - The desired build state of the target HMC.
+            - C(facts) does not change anything on the HMC and returns list of backup files of a VIOS.
+            - C(present) ensures the new backup file is created for the specified VIOS.
+            - C(absent) ensures the specified backup file/s is removed from the HMC.
+            - C(restore) ensures the backup file is restored.
+            - C(modify) ensures that the name of the backup file is changed in HMC.
+        type: str
+        choices: ['facts', 'present', 'absent', 'restore', 'modify']
+'''
+
 RETURN = '''
 Command_output:
     description: Respective user configuration
@@ -51,11 +185,11 @@ def validate_sub_params(params):
         unsupportedList = ['restart', 'nimol_resource', 'media_repository', 'volume_group_structure', 'file_list']
 
     if opr in ['present', 'restore', 'absent','modify']:
-        count = sum(x is not None for x in [params['id'], params['uuid'], params['vios_name']])
+        count = sum(x is not None for x in [params['vios_id'], params['vios_uuid'], params['vios_name']])
         if count == 0:
-           raise ParameterError("Missing parameter for vios details is missing")
+           raise ParameterError("Missing VIOS details")
         if count!= 1:
-            raise ParameterError("Parameters 'id', 'uuid' and 'vios_name' are mutually exclusive")
+            raise ParameterError("Parameters 'vios_id', 'vios_uuid' and 'vios_name' are mutually exclusive")
     if opr == 'present':
         if params['nimol_resource'] != None or params['media_repository'] != None or params['volume_group_structure'] != None:
                 if params['types'] != 'vios':
@@ -151,7 +285,7 @@ def ensure_present(module, params):
     hmc_conn = HmcCliConnection(module, hmc_host, hmc_user, password)
     hmc = Hmc(hmc_conn)
     
-    vios_name = attributes['vios_name'] or attributes['id'] or attributes['uuid']
+    vios_name = attributes['vios_name'] or attributes['vios_id'] or attributes['vios_uuid']
     m_system = attributes['system']
     sys_list = (
     hmc_conn.execute("lssyscfg -r sys -F name").splitlines() +
@@ -162,19 +296,19 @@ def ensure_present(module, params):
     else:
         if attributes['vios_name'] != None:
             vios_list = list(hmc_conn.execute("lssyscfg -r lpar -m {0} -F name".format(m_system)).splitlines())
-        elif attributes['id'] != None:
+        elif attributes['vios_id'] != None:
             vios_list = list(hmc_conn.execute("lssyscfg -r lpar -m {0} -F lpar_id".format(m_system)).splitlines())
-        elif attributes['uuid'] != None:
+        elif attributes['vios_uuid'] != None:
             vios_list = list(hmc_conn.execute("lssyscfg -r lpar -m {0} -F uuid".format(m_system)).splitlines())
         if vios_name not in vios_list:
             module.fail_json(msg="The vios is not available in the managed system")
         else:
             if attributes['vios_name'] != None:
                 filter_d = {"VIOS_NAMES": attributes['vios_name'],"SYS_NAMES": attributes['system'],"TYPES": attributes['types']}
-            elif attributes['id'] != None:
-                filter_d = {"VIOS_IDS": attributes['id'],"SYS_NAMES": attributes['system'],"TYPES": attributes['types']}
-            elif attributes['uuid'] != None:
-                filter_d = {"VIOS_UUIDS": attributes['uuid'],"SYS_NAMES": attributes['system'],"TYPES": attributes['types']}            
+            elif attributes['vios_id'] != None:
+                filter_d = {"VIOS_IDS": attributes['vios_id'],"SYS_NAMES": attributes['system'],"TYPES": attributes['types']}
+            elif attributes['vios_uuid'] != None:
+                filter_d = {"VIOS_UUIDS": attributes['vios_uuid'],"SYS_NAMES": attributes['system'],"TYPES": attributes['types']}            
             vios_list = hmc.listViosbk(filter_d)
             vios_list = [item['NAME'].split('.')[0] for item in vios_list]
             if attributes['backup_name'] in vios_list:
@@ -185,10 +319,10 @@ def ensure_present(module, params):
                     hmc.createViosBk(configDict=attributes)
                     if attributes['vios_name'] != None:
                         filter_d = {"VIOS_NAMES": attributes['vios_name'],"SYS_NAMES": attributes['system'],"TYPES": attributes['types']}
-                    elif attributes['id'] != None:
-                        filter_d = {"VIOS_IDS": attributes['id'],"SYS_NAMES": attributes['system'],"TYPES": attributes['types']}
-                    elif attributes['uuid'] != None:
-                        filter_d = {"VIOS_UUIDS": attributes['uuid'],"SYS_NAMES": attributes['system'],"TYPES": attributes['types']}
+                    elif attributes['vios_id'] != None:
+                        filter_d = {"VIOS_IDS": attributes['vios_id'],"SYS_NAMES": attributes['system'],"TYPES": attributes['types']}
+                    elif attributes['vios_uuid'] != None:
+                        filter_d = {"VIOS_UUIDS": attributes['vios_uuid'],"SYS_NAMES": attributes['system'],"TYPES": attributes['types']}
                     viosbk_info = hmc.listViosbk(filter_d)
                 except HmcError as error:
                     if USER_AUTHORITY_ERR in repr(error):
@@ -211,7 +345,7 @@ def ensure_restore(module, params):
     hmc = Hmc(hmc_conn)
     
     m_system = attributes['system']
-    vios_name = attributes['vios_name'] or attributes['id'] or attributes['uuid']
+    vios_name = attributes['vios_name'] or attributes['vios_id'] or attributes['vios_uuid']
     if attributes['types'] not in ['viosioconfig', 'ssp']:
         module.warn(msg="For restore the type can be either viosioconfig or ssp")
     m_system = attributes['system']
@@ -224,19 +358,19 @@ def ensure_restore(module, params):
     else:
         if attributes['vios_name'] != None:
             vios_list = list(hmc_conn.execute("lssyscfg -r lpar -m {0} -F name".format(m_system)).splitlines())
-        elif attributes['id'] != None:
+        elif attributes['vios_id'] != None:
             vios_list = list(hmc_conn.execute("lssyscfg -r lpar -m {0} -F lpar_id".format(m_system)).splitlines())
-        elif attributes['uuid'] != None:
+        elif attributes['vios_uuid'] != None:
             vios_list = list(hmc_conn.execute("lssyscfg -r lpar -m {0} -F uuid".format(m_system)).splitlines())
         if vios_name not in vios_list:
             module.fail_json(msg="The vios is not available in the managed system")
         else:
             if attributes['vios_name'] != None:
                 filter_d = {"VIOS_NAMES": attributes['vios_name'],"SYS_NAMES": attributes['system'],"TYPES": attributes['types']}
-            elif attributes['id'] != None:
-                filter_d = {"VIOS_IDS": attributes['id'],"SYS_NAMES": attributes['system'],"TYPES": attributes['types']}
-            elif attributes['uuid'] != None:
-                filter_d = {"VIOS_UUIDS": attributes['uuid'],"SYS_NAMES": attributes['system'],"TYPES": attributes['types']}            
+            elif attributes['vios_id'] != None:
+                filter_d = {"VIOS_IDS": attributes['vios_id'],"SYS_NAMES": attributes['system'],"TYPES": attributes['types']}
+            elif attributes['vios_uuid'] != None:
+                filter_d = {"VIOS_UUIDS": attributes['vios_uuid'],"SYS_NAMES": attributes['system'],"TYPES": attributes['types']}            
             vios_list = hmc.listViosbk(filter_d)
             vios_list = [item['NAME'] for item in vios_list]
             if attributes['backup_name'] not in vios_list:
@@ -265,7 +399,7 @@ def ensure_absent(module, params):
     hmc_conn = HmcCliConnection(module, hmc_host, hmc_user, password)
     hmc = Hmc(hmc_conn)
     
-    vios_name = attributes['vios_name'] or attributes['id'] or attributes['uuid']
+    vios_name = attributes['vios_name'] or attributes['vios_id'] or attributes['vios_uuid']
     m_system = attributes['system']
     sys_list = (
     hmc_conn.execute("lssyscfg -r sys -F name").splitlines() +
@@ -276,19 +410,19 @@ def ensure_absent(module, params):
     else:
         if attributes['vios_name'] != None:
             vios_list = list(hmc_conn.execute("lssyscfg -r lpar -m {0} -F name".format(m_system)).splitlines())
-        elif attributes['id'] != None:
+        elif attributes['vios_id'] != None:
             vios_list = list(hmc_conn.execute("lssyscfg -r lpar -m {0} -F lpar_id".format(m_system)).splitlines())
-        elif attributes['uuid'] != None:
+        elif attributes['vios_uuid'] != None:
             vios_list = list(hmc_conn.execute("lssyscfg -r lpar -m {0} -F uuid".format(m_system)).splitlines())
         if vios_name not in vios_list:
             module.fail_json(msg="The vios is not available in the managed system")
         else:
             if attributes['vios_name'] != None:
                 filter_d = {"VIOS_NAMES": attributes['vios_name'],"SYS_NAMES": attributes['system'],"TYPES": attributes['types']}
-            elif attributes['id'] != None:
-                filter_d = {"VIOS_IDS": attributes['id'],"SYS_NAMES": attributes['system'],"TYPES": attributes['types']}
-            elif attributes['uuid'] != None:
-                filter_d = {"VIOS_UUIDS": attributes['uuid'],"SYS_NAMES": attributes['system'],"TYPES": attributes['types']}            
+            elif attributes['vios_id'] != None:
+                filter_d = {"VIOS_IDS": attributes['vios_id'],"SYS_NAMES": attributes['system'],"TYPES": attributes['types']}
+            elif attributes['vios_uuid'] != None:
+                filter_d = {"VIOS_UUIDS": attributes['vios_uuid'],"SYS_NAMES": attributes['system'],"TYPES": attributes['types']}            
             backup_list = hmc.listViosbk(filter_d)
             backup_list = [item['NAME'] for item in backup_list]
             file_list = attributes['file_list']
@@ -324,7 +458,7 @@ def ensure_modify(module, params):
     hmc_conn = HmcCliConnection(module, hmc_host, hmc_user, password)
     hmc = Hmc(hmc_conn)
     
-    vios_name = attributes['vios_name'] or attributes['id'] or attributes['uuid']
+    vios_name = attributes['vios_name'] or attributes['vios_id'] or attributes['vios_uuid']
     m_system = attributes['system']
     sys_list = (
     hmc_conn.execute("lssyscfg -r sys -F name").splitlines() +
@@ -335,19 +469,19 @@ def ensure_modify(module, params):
     else:
         if attributes['vios_name'] != None:
             vios_list = list(hmc_conn.execute("lssyscfg -r lpar -m {0} -F name".format(m_system)).splitlines())
-        elif attributes['id'] != None:
+        elif attributes['vios_id'] != None:
             vios_list = list(hmc_conn.execute("lssyscfg -r lpar -m {0} -F lpar_id".format(m_system)).splitlines())
-        elif attributes['uuid'] != None:
+        elif attributes['vios_uuid'] != None:
             vios_list = list(hmc_conn.execute("lssyscfg -r lpar -m {0} -F uuid".format(m_system)).splitlines())
         if vios_name not in vios_list:
             module.fail_json(msg="The vios is not available in the managed system")
         else:
             if attributes['vios_name'] != None:
                 filter_d = {"VIOS_NAMES": attributes['vios_name'],"SYS_NAMES": attributes['system'],"TYPES": attributes['types']}
-            elif attributes['id'] != None:
-                filter_d = {"VIOS_IDS": attributes['id'],"SYS_NAMES": attributes['system'],"TYPES": attributes['types']}
-            elif attributes['uuid'] != None:
-                filter_d = {"VIOS_UUIDS": attributes['uuid'],"SYS_NAMES": attributes['system'],"TYPES": attributes['types']}            
+            elif attributes['vios_id'] != None:
+                filter_d = {"VIOS_IDS": attributes['vios_id'],"SYS_NAMES": attributes['system'],"TYPES": attributes['types']}
+            elif attributes['vios_uuid'] != None:
+                filter_d = {"VIOS_UUIDS": attributes['vios_uuid'],"SYS_NAMES": attributes['system'],"TYPES": attributes['types']}            
             backup_list = hmc.listViosbk(filter_d)
             backup_list = [item['NAME'] for item in backup_list]
             if attributes['backup_name'] not in backup_list:
@@ -400,13 +534,14 @@ def run_module():
                           password=dict(type='str', no_log=True),
                       )
                       ),
-        state=dict(type='str',choices=['facts','present', 'restore', 'absent','modify']),
+        state=dict(type='str',choices=['facts','present', 'absent', 'restore', 'modify']),
         attributes=dict(type='dict',
+                        required=True,
                         options=dict(
                             types=dict(type='str',choices=['viosioconfig', 'vios', 'ssp']),
                             system=dict(type='str'),
-                            id=dict(type='str'),
-                            uuid=dict(type='str'),
+                            vios_id=dict(type='str'),
+                            vios_uuid=dict(type='str'),
                             vios_name=dict(type='str'),
                             backup_name=dict(tye='str'),
                             file_list=dict(type='list'),
