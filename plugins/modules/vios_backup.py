@@ -132,6 +132,61 @@ options:
         choices: ['facts', 'present', 'absent', 'restore', 'modify']
 '''
 
+EXAMPLES = '''
+- name: Create a viosioconfig backup file
+  vios_backup:
+    hmc_host: "{{ inventory_hostname }}"
+    hmc_auth:
+         username: '{{ ansible_user }}'
+         password: '{{ hmc_password }}'
+    attributes:
+        vios_name: <vios name>
+        backup_name: test
+        system: <sys>
+        types: viosioconfig
+    state: present
+
+- name: Restore a vios from test backup file 
+  vios_backup:
+    hmc_host: "{{ inventory_hostname }}"
+    hmc_auth:
+         username: '{{ ansible_user }}'
+         password: '{{ hmc_password }}'
+    attributes:
+        vios_name: <vios name>
+        backup_name: test.tar.gz
+        system: <sys>
+        types: viosioconfig
+    state: restore
+
+- name: Remove a backup file
+  vios_backup:
+    hmc_host: "{{ inventory_hostname }}"
+    hmc_auth:
+         username: '{{ ansible_user }}'
+         password: '{{ hmc_password }}'
+    attributes:
+        vios_name: <vios name>
+        backup_name: test.tar.gz
+        system: <sys>
+        types: viosioconfig
+    state: absent
+
+- name: Rename the backup file
+  vios_backup:
+    hmc_host: "{{ inventory_hostname }}"
+    hmc_auth:
+         username: '{{ ansible_user }}'
+         password: '{{ hmc_password }}'
+    attributes:
+        vios_name: <vios name>
+        backup_name: test.tar.gz
+        new_name: new.tar.gz
+        system: <sys>
+        types: viosioconfig
+    state: modify
+'''
+
 RETURN = '''
 Command_output:
     description: Respective user configuration
