@@ -167,14 +167,14 @@ def validate_sub_params(params):
     else:
         opr = params['action']
 
-    if opr in ['present', 'restore']:
+    if opr == 'present':
         params = params['attributes']
         mandatoryList = ['types', 'system', 'backup_name']
         unsupportedList = ['restart','new_name']
     if opr == 'restore':
         params = params['attributes']
         mandatoryList = ['types', 'system', 'backup_name']
-        unsupportedList = ['restart', 'nimol_resource', 'media_repository', 'volume_group_structure', 'file_list','new_name']
+        unsupportedList = ['nimol_resource', 'media_repository', 'volume_group_structure', 'file_list','new_name']
     if opr == 'absent':
         params = params['attributes']
         mandatoryList = ['types', 'system', 'file_list']
