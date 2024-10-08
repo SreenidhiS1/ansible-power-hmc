@@ -187,17 +187,21 @@ def extract_updlic_options(params):
     repo = params['repository']
     level = params['level']
     remote_repo = params['remote_repo']
+    path = params['path']
 
-    return system_name, repo, level, remote_repo
+    return system_name, repo, level, remote_repo, path
 
 
 def update_system(module, params):
     hmc = create_hmc_conn(module, params)
-    system_name, repo, level, remote_repo = extract_updlic_options(params)
+    system_name, repo, level, remote_repo, path = extract_updlic_options(params)
     ret_dict = {}
     try:
         initial_level = hmc.get_firmware_level(system_name)
-        hmc.update_managed_system(system_name, False, repo, level, remote_repo)
+        if repo == 'disk' or repo == 'mountpoint':
+            hmc.update_managed_system(system_name, False, repo, level, path)
+        else:
+            hmc.update_managed_system(system_name, False, repo, level, remote_repo)
         ret_dict = {'msg': 'system update finished'}
         new_level = hmc.get_firmware_level(system_name)
         logger.debug("new_level: %s", new_level)
@@ -277,6 +281,8 @@ def perform_task(module):
 
 def validate_parameters(params):
     remote_repo = params['remote_repo']
+    repository = params['repository']
+    path = params['path']
     if remote_repo:
         passwd = remote_repo['passwd']
         sshkey = remote_repo['sshkey_file']
@@ -287,6 +293,14 @@ def validate_parameters(params):
             raise ParameterError("'repository:ftp' and 'sshkey_file' are  incompatible")
         if repository == 'ibmwebsite':
             raise ParameterError("Value 'ibmwebsite' is incompatible with any 'remote_repo' arguments")
+    if (repository == 'disk' or repository == 'mountpoint') and remote_repo is not None:
+        raise ParameterError("Value 'disk' or 'mountpoint' is incompatible with any 'remote_repo' arguments")
+    if (repository == 'disk' or repository == 'mountpoint') and path is None:
+        raise ParameterError("Value 'disk' or 'mountpoint' requires 'path' argument")
+    if repository == 'disk' and path['dir_path'] is not None:
+        raise ParameterError("'repository:disk' and 'dir_path' are  incompatible")
+    if repository == 'mountpoint' and path['file_path'] is not None:
+        raise ParameterError("'repository:mountpoint' and 'file_path' are  incompatible")
 
 
 def run_module():
@@ -304,7 +318,11 @@ def run_module():
         action=dict(type='str', choices=['accept']),
         state=dict(type='str', choices=['updated', 'upgraded', ]),
         level=dict(type='str', default='latest'),
-        repository=dict(type='str', default='ibmwebsite', choices=['ibmwebsite', 'ftp', 'sftp']),
+        repository=dict(type='str', default='ibmwebsite', choices=['ibmwebsite', 'ftp', 'sftp', 'mountpoint']),
+        path=dict(type='dict', options=dict(
+                        file_path=dict(type='str'),
+                        dir_path=dict(type='str'), )
+                 ),  
         remote_repo=dict(type='dict', options=dict(
                               hostname=dict(type='str', required=True),
                               userid=dict(type='str', required=True),
