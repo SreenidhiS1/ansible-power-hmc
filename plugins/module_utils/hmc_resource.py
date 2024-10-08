@@ -640,24 +640,30 @@ class Hmc():
             update_upgrade_flags = self.OPT['UPDLIC']['-O']['UPGRADE']
         else:
             update_upgrade_flags = self.OPT['UPDLIC']['-O']['RETINSTACT']
+            logger.debug("update_upgrade_flags:%s",update_upgrade_flags)
         # build command
         updlic_cmd = self.CMD['UPDLIC'] +\
             self.OPT['UPDLIC']['-M'] + system_name +\
             update_upgrade_flags +\
             self.OPT['UPDLIC']['-T']['SYS'] +\
-            self.OPT['UPDLIC']['-R'] + repo +\
-            self.OPT['UPDLIC']['-L'] + level
-        if remote_repo:
-            updlic_cmd += self.OPT['UPDLIC']['-H'] + remote_repo['hostname']
-            updlic_cmd += self.OPT['UPDLIC']['-U'] + remote_repo['userid']
-            updlic_cmd += self.OPT['UPDLIC']['-D'] + remote_repo['directory']
-            passwd = remote_repo['passwd']
-            if passwd:
-                updlic_cmd += self.OPT['UPDLIC']['--PASSWD'] + passwd
-            ssh_key = remote_repo['sshkey_file']
-            if ssh_key:
-                updlic_cmd += self.OPT['UPDLIC']['-K'] + ssh_key
-
+            self.OPT['UPDLIC']['-R'] + repo 
+        if repo == 'mountpoint':
+            updlic_cmd += self.OPT['UPDLIC']['-D'] + remote_repo['dir_path']
+            updlic_cmd += self.OPT['UPDLIC']['-L'] + level
+        elif repo == 'disk':
+            updlic_cmd += self.OPT['UPDLIC']['-L'] + remote_repo['file_path']
+        else:
+            if remote_repo:
+                updlic_cmd += self.OPT['UPDLIC']['-L'] + level
+                updlic_cmd += self.OPT['UPDLIC']['-H'] + remote_repo['hostname']
+                updlic_cmd += self.OPT['UPDLIC']['-U'] + remote_repo['userid']
+                updlic_cmd += self.OPT['UPDLIC']['-D'] + remote_repo['directory']
+                passwd = remote_repo['passwd']
+                if passwd:
+                    updlic_cmd += self.OPT['UPDLIC']['--PASSWD'] + passwd
+                ssh_key = remote_repo['sshkey_file']
+                if ssh_key:
+                    updlic_cmd += self.OPT['UPDLIC']['-K'] + ssh_key
         self.hmcconn.execute(updlic_cmd)
 
     def get_firmware_level(self, system_name):
