@@ -53,7 +53,9 @@ class HmcCommandStack():
                'RSTVIOSBK': 'rstviosbk',
                'RMVIOSBK': 'rmviosbk',
                'CHVIOSBK': 'chviosbk',
-               }
+               'UPDVIOS': 'updvios',
+               'UPGVIOS': 'upgvios',
+              }
 
     HMC_CMD_OPT = {'LSHMC': {'-N': ' -n ',
                              '-v': ' -v ',
@@ -451,6 +453,23 @@ class HmcCommandStack():
                    'RSTVIOSBK': {'-T': ' -t ', '-M': ' -m ', '-P': ' -p ', '-F': ' -f ', '--ID': '--id ', '--UUID': '--uuid ', '-R': '-r '},
                    'RMVIOSBK': {'-T': ' -t ', '-M': ' -m ', '-P': ' -p ', '-F': ' -f ', '--ID': '--id ', '--UUID': '--uuid '},
                    'CHVIOSBK': {'-T': ' -t ', '-M': ' -m ', '-P': ' -p ', '-F': ' -f ', '--ID': '--id ', '--UUID': '--uuid ', '-O': '-o ', '-A': '-a '},
+                   'UPDVIOS': {'-R': ' -r ',
+                               '-M': ' -m ',
+                               '-P': ' -p ',
+                               '--ID': ' --id ',
+                               '-N': ' -n ',
+                               '-F': ' -f ',
+                               '-H': ' -h ',
+                               '-U': ' -u ',
+                               '--PASSWD': ' --passwd ',
+                               '-K': ' -k ',
+                               '-D': ' -d ',
+                               '-L': ' -l ',
+                               '--OPTIONS': ' --options ',
+                               '--DEVICE': ' --device ',
+                               '--RESTART': ' --restart ',
+                               '--SAVE': ' --save ',
+                               '--DISK': ' --disk '}
                    }
 
     def filterBuilder(self, cmdKey, configOptionsDict):
