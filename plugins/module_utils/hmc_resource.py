@@ -801,3 +801,30 @@ class Hmc():
         lines = raw_result.split()
 
         return lines
+
+
+    def updatevios(self, state, configDict=None):
+        updviosbk_cmd = ''
+        if state == 'updated':
+            updviosbk_cmd += self.CMD['UPDVIOS']
+        elif state == 'upgraded':
+            updviosbk_cmd += self.CMD['UPGVIOS']
+        updviosbk_cmd += self.OPT['UPDVIOS']['-R'] + configDict['repository'] + \
+                        self.OPT['UPDVIOS']['-M'] + configDict['system_name']
+        option_map= { 'vios_name': '-P', 'vios_id': '--ID', 'image_name': '-N', 'file_list': '-F',
+                     'host_name': '-H', 'user_id': '-U', 'password': '--PASSWD', 'ssh_key_file': '-K',
+                     'directory': '-D', 'mount_loc': '-L', 'option': '--OPTIONS', 'usb_file_loc': '--DEVICE' }
+        for key in option_map:
+            if configDict[key] is not None:
+                updviosbk_cmd += self.OPT['UPDVIOS'][option_map[key]] + configDict[key]
+        if configDict['restart'] is not None:
+            updviosbk_cmd += self.OPT['UPDVIOS']['--RESTART']
+        if configDict['save'] is not None:
+            updviosbk_cmd += self.OPT['UPDVIOS']['--SAVE']
+        if state == 'upgraded':
+            updviosbk_cmd += self.OPT['UPDVIOS']['--DISK'] + str(configDict['disk_list'])
+
+        #self.hmcconn.execute(updviosbk_cmd)
+        logger.debug("command formed")
+        logger.debug(updviosbk_cmd)
+        return None
