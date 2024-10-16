@@ -100,6 +100,7 @@ def validate_sub_params(params):
         unsupportedList += ['disk_list']
     elif opr == 'upgraded':
         mandatoryList += ['disk_list']
+        unsupportedList += ['restart']
 
     if opr == 'facts':
         unsupportedList += ['file_list', 'host_name', 'user_id', 'password', 'ssh_key_file', 'repository', 'restart',
