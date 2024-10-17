@@ -304,7 +304,7 @@ def run_module():
                             ssh_key_file=dict(type='str'),
                             mount_loc=dict(type='str'),
                             directory=dict(type='str'),
-                            option=dict(type='str'),
+                            option=dict(type='str', choices=['3', '4']),
                             usb_file_loc=dict(type='str'),
                             restart=dict(type='bool'),
                             save=dict(type='bool'),
