@@ -54,13 +54,13 @@ EXAMPLES = '''
 
 RETURN = '''
 Command_output:
-    description: Respective user configuration
+    description: Respective build information
     type: dict
-    returned: on success of all states except C(absent)
+    returned: always
 '''
 
 import logging
-LOG_FILENAME = "/tmp/ansible_power_hmc_vios_update.log"
+LOG_FILENAME = "/tmp/ansible_power_hmc.log"
 logger = logging.getLogger(__name__)
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ibm.power_hmc.plugins.module_utils.hmc_cli_client import HmcCliConnection
@@ -101,8 +101,7 @@ def validate_sub_params(params):
     elif opr == 'upgraded':
         mandatoryList += ['disk_list']
         unsupportedList += ['restart']
-
-    if opr == 'facts':
+    elif opr == 'facts':
         unsupportedList += ['file_list', 'host_name', 'user_id', 'password', 'ssh_key_file', 'repository', 'restart',
                             'mount_loc', 'option', 'directory', 'usb_file_loc', 'save', 'disk_list', 'image_name']
 
@@ -110,8 +109,7 @@ def validate_sub_params(params):
         count = sum(x is not None for x in [params['ssh_key_file'], params['password']])
         if count != 1 and count !=0:
             raise ParameterError("Parameters 'ssh_key_file' and 'password' are mutually exclusive")
-
-    if repo == 'disk':
+    elif repo == 'disk':
         mandatoryList += ['image_name']
         unsupportedList += ['file_list', 'host_name', 'user_id', 'password', 'ssh_key_file', 'mount_loc', 'option', 'directory', 'usb_file_loc', 'save']
     elif repo == 'ibmwebsite':
