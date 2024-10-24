@@ -109,6 +109,8 @@ def validate_sub_params(params):
         count = sum(x is not None for x in [params['ssh_key_file'], params['password']])
         if count != 1 and count !=0:
             raise ParameterError("Parameters 'ssh_key_file' and 'password' are mutually exclusive")
+        mandatoryList += ['user_id', 'host_name']
+        unsupportedList += ['mount_loc', 'option', 'usb_file_loc']
     elif repo == 'disk':
         mandatoryList += ['image_name']
         unsupportedList += ['file_list', 'host_name', 'user_id', 'password', 'ssh_key_file', 'mount_loc', 'option', 'directory', 'usb_file_loc', 'save']
@@ -118,9 +120,6 @@ def validate_sub_params(params):
     elif repo == 'nfs':
         mandatoryList += ['mount_loc', 'host_name']
         unsupportedList += ['user_id', 'password', 'ssh_key_file', 'usb_file_loc']
-    elif repo == 'sftp':
-        mandatoryList += ['user_id', 'host_name']
-        unsupportedList += ['mount_loc', 'option', 'usb_file_loc']
     elif repo == 'usb':
         mandatoryList += ['usb_file_loc']
         unsupportedList += ['file_list', 'host_name', 'user_id', 'password', 'ssh_key_file', 'mount_loc', 'option', 'directory', 'save']
