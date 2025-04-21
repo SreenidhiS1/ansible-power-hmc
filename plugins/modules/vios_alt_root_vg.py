@@ -18,22 +18,36 @@ author:
     - Sreenidhi S(@SreenidhiS1)
 short_description: Create/Cleanup an alternate rootvg disk on a VIOS
 notes:
-    - For executing this module, create a task role with following command
+    - This module requires the HMC login user to have specific permissions.
+      To achieve this, the user should create a task role based on hmcsuperadmin with additional permissions,
+      including ViosAdminOp, VirtualIOServerCommand and other permissions for managing lpar and cec resources.
+    - The following example demonstrates the same
+      1.For executing this module, create a task role with following command
       C(mkaccfg -t taskrole -i name=new_task_role,parent=hmcsuperadmin,
-      resources=lpar:ActivateLPAR+CapturePartitionTemplate+ChangeLPARProperty+ChangeNPortLogin+ChangeProfileProperty+CloseVTerm+Connect5250VTerm+CreateProfile+
-      Delete5250VTerm+DeleteLPAR+DeleteProfile+DisableEnableVirtualEthernet+DlparOperation+HibernateLPAR+ListLPARProperty+ListProfileProperty+ManageLPARDebugData+
-      ManageLPARServEvents+ManageLicenseKeys+ManageProfile+MigrateLPAR+Open5250VTerm+OpenVTerm+PartProfileCopy+RRStartLPAR+RebootLPAR+RemoteRestartLPAR+
+      resources=lpar:ActivateLPAR+CapturePartitionTemplate+ChangeLPARProperty+
+      ChangeNPortLogin+ChangeProfileProperty+CloseVTerm+Connect5250VTerm+
+      CreateProfile+Delete5250VTerm+DeleteLPAR+DeleteProfile+DisableEnableVirtualEthernet+
+      DlparOperation+HibernateLPAR+ListLPARProperty+ListProfileProperty+ManageLPARDebugData+
+      ManageLPARServEvents+ManageLicenseKeys+ManageProfile+MigrateLPAR+
+      Open5250VTerm+OpenVTerm+PartProfileCopy+RRStartLPAR+RebootLPAR+RemoteRestartLPAR+
       ShutdownLPAR+VirtualIOServerCommand+ViosAdminOp,
-      cec:ActivateSystemProfile+BackupProfileData+CECPowerOff+CECPowerOn+CaptureSystemTemplate+ChangeCECPassword+ChangeCECProperty+ChangeCoD+ChangePowerManagement+
-      ChangeSnmpAlerts+ChangeSystemConnectionProperty+ChangeSystemProfileProperty+ChangeTrustedSystemKey+ChangeVETCode+CoDPoolManagement+
-      CollectCECVPDInfo+ConfigProcessorRecovery+CreateLPAR+CreatePassThruCommand+CreateSystemProfile+DLPARRestoreHWResources+DeleteSystemProfile+
-      DeployPartitionTemplate+DeploySystemPlan+DeploySystemTemplate+DeviceMaintenance+DisconnectOtherHmc+EditCECMTMS+InitializeProfileData+
-      InitializeSPFailover+LSProfileSpace+LaunchAsm+ListCECProperty+ListCoDInformation+ListCoDNotifications+ListNPortLogin+ListPCIeTopology+ListRioTopology+
-      ListSSP+ListSnmpAlerts+ListSystemProfileProperty+ListTrustedSystemKey+ListUtilizationData+ListVETInfo+MakeSystemPlan+ManageCECServEvents+
-      ManageCoDNotifications+ManageDumps+ManageSPP+ManageSSP+ManageSriovAdapter+ManageSysProfile+ManageUtilizationData+ManageVirtualNetwork+ManageVirtualStorage+
-      MoveSriovAdapter+PartitionConfigurationImage+RebuildCEC+RecoverPartitionData+RemoveCECConnection+RemoveCEConnection+RemoveProfileData+RestoreProfileData+
-      SetCECKeylockPosition+SysProfileCopy+UpdateLIC+ValidateSystemProfile+ViewDumps+ViewPowerManagement+ViewSPP)
-    - Create a user with the above created task role.
+      cec:ActivateSystemProfile+BackupProfileData+CECPowerOff+CECPowerOn+
+      CaptureSystemTemplate+ChangeCECPassword+ChangeCECProperty+ChangeCoD+ChangePowerManagement+
+      ChangeSnmpAlerts+ChangeSystemConnectionProperty+ChangeSystemProfileProperty+
+      ChangeTrustedSystemKey+ChangeVETCode+CoDPoolManagement+CollectCECVPDInfo+
+      ConfigProcessorRecovery+CreateLPAR+CreatePassThruCommand+CreateSystemProfile+
+      DLPARRestoreHWResources+DeleteSystemProfile+DeployPartitionTemplate+DeploySystemPlan+
+      DeploySystemTemplate+DeviceMaintenance+DisconnectOtherHmc+EditCECMTMS+InitializeProfileData+
+      InitializeSPFailover+LSProfileSpace+LaunchAsm+ListCECProperty+ListCoDInformation+
+      ListCoDNotifications+ListNPortLogin+ListPCIeTopology+ListRioTopology+ListSSP+
+      ListSnmpAlerts+ListSystemProfileProperty+ListTrustedSystemKey+ListUtilizationData+
+      ListVETInfo+MakeSystemPlan+ManageCECServEvents+ManageCoDNotifications+ManageDumps+
+      ManageSPP+ManageSSP+ManageSriovAdapter+ManageSysProfile+ManageUtilizationData+
+      ManageVirtualNetwork+ManageVirtualStorage+MoveSriovAdapter+PartitionConfigurationImage+
+      RebuildCEC+RecoverPartitionData+RemoveCECConnection+RemoveCEConnection+RemoveProfileData+
+      RestoreProfileData+SetCECKeylockPosition+SysProfileCopy+UpdateLIC+ValidateSystemProfile+
+      ViewDumps+ViewPowerManagement+ViewSPP)
+      2.Create a user with the above created task role.
 description:
     - Copy the rootvg to an alternate disk
     - Cleanup an existing alternate disk copy.

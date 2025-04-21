@@ -372,34 +372,34 @@ options:
             allowed_vlanids:
                 description:
                     - Setting controls whether the virtual NIC accepts packets with any VLAN ID.
-                    - Value can be All, None, comma-sepearted VLAN IDs.
+                    - Value can be C(All), C(None), C(comma-sepearted VLAN IDs).
                     - For comma-seperated VLAN IDs values should be between 2 and 4094.
                     - Maximum number of VLAN IDs that can be provided is 20.
-                    - Default value is All.
-                    - If the value is set to All, then allowed_macaddr should also be All.
-                    - If the value is set to None, then allowed_macaddr should also be None.
+                    - Default value is C(All).
+                    - The value of allowed_vlanids should match the setting if set to C(All), allowed_macaddr should also be C(All)
+                      and if set to C(None), allowed_macaddr should be either C(None) or C(comma-sepearted Mac-addresses).
                 type: str
             allowed_macaddr:
                 description:
                     - Setting controls whether the virtual NIC accepts packets with any valid MAC Address.
-                    - Value can be All, None, comma-sepearted MAC Addresses.
+                    - Value can be C(All), C(None), C(comma-sepearted VLAN IDs).
                     - Maximum number of MAC Addresses that can be provided is 4.
-                    - Default value is All.
-                    - If the value is set to All, then allowed_vlanids should also be All.
-                    - If the value is set to None, then allowed_vlanids should also be None.
+                    - Default value is C(All).
+                    - The value of allowed_macaddr should match the setting if set to C(All), allowed_vlanids should also be C(All)
+                      and if set to C(None), allowed_vlanids should be either C(None) or C(comma-sepearted VLAN IDs).
                 type: str
             port_vlan_id:
                 description:
                     - Specify a Port VLAN ID that is within the valid range for the SR-IOV physical port that is selected for the backing device.
                     - The Port VLAN ID field is displayed only if the SR-IOV physical port supports a port VLAN ID.
-                    - Value should be 0 or should range between 2 and 4094.
-                    - Default value is 0.
+                    - Value should be C(0) or should range between C(2 and 4094).
+                    - Default value is C(0).
                 type: int
             port_vlan_priority:
                 description:
                     - Specified to prioritize the frames in a VLAN network.
-                    - Value can be between 0 and 7.
-                    - Default vale is 0.
+                    - Value can be between C(0 and 7).
+                    - Default value is C(0).
                 type: int
             backing_devices:
                 description:
