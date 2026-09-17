@@ -3746,7 +3746,7 @@ class HmcRestClient:
             raise
 
     @staticmethod
-    def _sea_xml(vios_href, is_primary, cfg, jumbo_frames=None, qos_mode=None):
+    def _sea_xml(vios_href, is_primary, cfg, jumbo_frames=None, qos_mode=None, ha_mode=None):
         """Return the XML fragment list for one SharedEthernetAdapter block.
 
         Used only in the bridge CREATE (PUT) payload.  The HMC PUT schema does
@@ -3755,7 +3755,7 @@ class HmcRestClient:
 
         Element order matches the HMC GET response XSD sequence:
           Metadata → AssignedVirtualIOServer → BackingDeviceChoice →
-          JumboFramesEnabled → QualityOfServiceMode →
+          HighAvailabilityMode → JumboFramesEnabled → QualityOfServiceMode →
           TrunkAdapters (empty) → IsPrimary
 
         DeviceName inside EthernetBackingDevice must use kb="ROR" per HMC schema.
@@ -3779,7 +3779,10 @@ class HmcRestClient:
                       '<DeviceName kb="ROR" kxe="false">{0}</DeviceName>'.format(backing),
                       '</EthernetBackingDevice>',
                       '</BackingDeviceChoice>']
-        # JumboFramesEnabled — must come after BackingDeviceChoice, before TrunkAdapters
+        # HighAvailabilityMode — must come after BackingDeviceChoice, before JumboFramesEnabled
+        if ha_mode is not None:
+            parts.append('<HighAvailabilityMode kb="CUD" kxe="false">{0}</HighAvailabilityMode>'.format(ha_mode))
+        # JumboFramesEnabled — must come after HighAvailabilityMode, before TrunkAdapters
         if jumbo_frames is not None:
             jf_str = 'true' if jumbo_frames else 'false'
             parts.append('<JumboFramesEnabled kb="UOD" kxe="false">{0}</JumboFramesEnabled>'.format(jf_str))
@@ -3850,12 +3853,14 @@ class HmcRestClient:
                           '<SharedEthernetAdapters kxe="false" kb="CUD" schemaVersion="V1_0">',
                           '<Metadata><Atom/></Metadata>']
         payload_parts += self._sea_xml(vios_href, is_primary=True, cfg=vios1_cfg,
-                                       jumbo_frames=jumbo_frames, qos_mode=qos_mode)
+                                       jumbo_frames=jumbo_frames, qos_mode=qos_mode,
+                                       ha_mode=vios1_cfg.get('ha_mode') if vios1_cfg else None)
         if vios2_id:
             vios2_href = "https://{0}/rest/api/uom/ManagedSystem/{1}/VirtualIOServer/{2}".format(
                 self.hmc_ip, system_uuid, vios2_id)
             payload_parts += self._sea_xml(vios2_href, is_primary=False, cfg=vios2_cfg or {},
-                                           jumbo_frames=jumbo_frames, qos_mode=qos_mode)
+                                           jumbo_frames=jumbo_frames, qos_mode=qos_mode,
+                                           ha_mode=(vios2_cfg or {}).get('ha_mode'))
         payload_parts += ['</SharedEthernetAdapters>',
                           '</NetworkBridge>']
         payload = ''.join(payload_parts)
