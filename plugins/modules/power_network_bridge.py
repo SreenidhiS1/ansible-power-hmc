@@ -526,6 +526,9 @@ def validate_parameters(params):
 
         # shared: secondary_pvid constraints
         secondary_pvid = nb.get('secondary_pvid')
+        if nb.get('load_balancing') and secondary_pvid is None:
+            raise ParameterError(
+                "shared_ethernet_adapter.secondary_pvid is required when shared_ethernet_adapter.load_balancing=true")
         if secondary_pvid is not None and not nb.get('load_balancing', False):
             raise ParameterError(
                 "shared_ethernet_adapter.secondary_pvid is only valid when shared_ethernet_adapter.load_balancing=true")
@@ -533,11 +536,18 @@ def validate_parameters(params):
             raise ParameterError(
                 "shared_ethernet_adapter.secondary_pvid must be between 1 and 4094; got: %s" % secondary_pvid)
 
-        # shared: high_availability_mode choices
+        # shared: high_availability_mode choices and applicability
+        # high_availability_mode is only valid when secondary_vios is configured
+        # (i.e. a two-VIOS failover bridge). It has no meaning on a single-VIOS bridge.
         ha_choices = ('disabled', 'auto', 'standby')
+        has_secondary_vios = bool(nb.get('secondary_vios'))
         for vios_key in ('primary_vios', 'secondary_vios'):
             vios_cfg = nb.get(vios_key) or {}
             ha = vios_cfg.get('high_availability_mode')
+            if ha is not None and not has_secondary_vios:
+                raise ParameterError(
+                    "shared_ethernet_adapter.%s.high_availability_mode is only valid "
+                    "when secondary_vios is configured (two-VIOS bridge)" % vios_key)
             if ha is not None and ha not in ha_choices:
                 raise ParameterError(
                     "shared_ethernet_adapter.%s.high_availability_mode must be one of %s; got: %s"
@@ -714,7 +724,9 @@ def ensure_present(module, params):
     failover_enabled = secondary_vios_name is not None
     # per-VIOS optional fields
     p_backing = primary_cfg.get('backing_device')
+    p_ha_mode = primary_cfg.get('high_availability_mode')
     s_backing = secondary_cfg.get('backing_device') if secondary_cfg else None
+    s_ha_mode = secondary_cfg.get('high_availability_mode') if secondary_cfg else None
 
     validate_parameters(params)
     system_name = _resolve_system_name(module, params, hmc_host, hmc_user, password)
@@ -729,8 +741,8 @@ def ensure_present(module, params):
             vios1_uuid = _resolve_vios_uuid(module, rest_conn, system_uuid, primary_vios_name)
             vios2_uuid = (_resolve_vios_uuid(module, rest_conn, system_uuid, secondary_vios_name)
                           if secondary_vios_name else None)
-            vios1_cfg = {'backing_device': p_backing}
-            vios2_cfg = ({'backing_device': s_backing}
+            vios1_cfg = {'backing_device': p_backing, 'ha_mode': p_ha_mode}
+            vios2_cfg = ({'backing_device': s_backing, 'ha_mode': s_ha_mode}
                           if vios2_uuid else None)
 
             # Resolve virtual network name to UUID, validate it is untagged,
