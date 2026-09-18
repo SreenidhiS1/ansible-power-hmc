@@ -718,7 +718,7 @@ def ensure_present(module, params):
     load_balancing = nb.get('load_balancing') or False
     secondary_pvid = nb.get('secondary_pvid') if load_balancing else None
     jumbo_frames = nb.get('jumbo_frames') or False
-    large_send = nb.get('large_send') or False
+    large_send = nb.get('large_send')
     qos_mode = nb.get('qos_mode')
     # failover is automatically true when a secondary_vios is configured
     failover_enabled = secondary_vios_name is not None
@@ -767,14 +767,29 @@ def ensure_present(module, params):
                 module.fail_json(msg="Virtual network '{0}' not found on system '{1}'".format(
                     virtual_network_name, system_name))
 
-            # Idempotency: exit unchanged if a bridge already exists on the derived PVID
+            # Idempotency: if a bridge already exists on the derived PVID, still apply
+            # any SEA-level settings that can only be set on an existing bridge
+            # (large_send, high_availability_mode) before exiting unchanged.
+            bridge_uuid = None
             bridges_dom = rest_conn.getNetworkBridges(system_uuid)
             if bridges_dom is not None:
                 for bridge in bridges_dom.xpath("//NetworkBridge"):
                     pvlan = bridge.xpath('PortVLANID')
                     if pvlan and pvlan[0].text == str(port_vlan_id):
+                        atom_id_elem = bridge.xpath('Metadata/Atom/AtomID')
+                        if atom_id_elem:
+                            bridge_uuid = atom_id_elem[0].text
+                        sea_update_needed = (large_send is not None
+                                             or p_ha_mode is not None
+                                             or s_ha_mode is not None)
+                        if sea_update_needed and bridge_uuid:
+                            single_bridge_dom = rest_conn.getNetworkBridge(system_uuid, bridge_uuid)
+                            if single_bridge_dom is not None:
+                                rest_conn.updateNetworkBridgeSEAs(
+                                    system_uuid, bridge_uuid, single_bridge_dom,
+                                    large_send, vios1_ha_mode=p_ha_mode, vios2_ha_mode=s_ha_mode)
                         module.exit_json(
-                            changed=False,
+                            changed=sea_update_needed,
                             msg="Network bridge with port_vlan_id '{0}' already exists".format(port_vlan_id))
 
             # Step 1: create the bridge — jumbo_frames and qos_mode are embedded
@@ -793,15 +808,17 @@ def ensure_present(module, params):
                 bridge_uuid_elem = bridge_dom.xpath("//AtomID")
             bridge_uuid = bridge_uuid_elem[0].text if bridge_uuid_elem else None
 
-            # Step 2: apply SEA-level settings that cannot be set at creation time
-            # (large_send — jumbo_frames and qos_mode already handled in the CREATE PUT above)
-            sea_update_needed = large_send is not None
+            # Step 2: apply SEA-level settings that cannot be set at creation time:
+            #   - large_send (XSD requires IIDPService/ConfigurationState first)
+            #   - high_availability_mode (HMC only accepts it on an existing bridge)
+            #   jumbo_frames and qos_mode are already handled in the CREATE PUT above.
+            sea_update_needed = large_send is not None or p_ha_mode is not None or s_ha_mode is not None
             if sea_update_needed and bridge_uuid:
                 single_bridge_dom = rest_conn.getNetworkBridge(system_uuid, bridge_uuid)
                 if single_bridge_dom is not None:
                     rest_conn.updateNetworkBridgeSEAs(
                         system_uuid, bridge_uuid, single_bridge_dom,
-                        large_send)
+                        large_send, vios1_ha_mode=p_ha_mode, vios2_ha_mode=s_ha_mode)
 
             network_bridge_info = {
                 'port_vlan_id': port_vlan_id,
