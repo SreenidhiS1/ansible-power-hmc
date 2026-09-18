@@ -3746,23 +3746,23 @@ class HmcRestClient:
             raise
 
     @staticmethod
-    def _sea_xml(vios_href, is_primary, cfg, jumbo_frames=None, qos_mode=None, ha_mode=None):
+    def _sea_xml(vios_href, is_primary, cfg, jumbo_frames=None, qos_mode=None):
         """Return the XML fragment list for one SharedEthernetAdapter block.
 
         Used only in the bridge CREATE (PUT) payload.  The HMC PUT schema does
-        not accept IPInterface or LargeSend at create time; those are applied via
-        the follow-up SEA POST-update (updateNetworkBridgeSEAs).
+        not accept IPInterface, LargeSend, or HighAvailabilityMode at create time;
+        those are applied via the follow-up SEA POST-update (updateNetworkBridgeSEAs).
 
         Element order matches the HMC GET response XSD sequence:
           Metadata → AssignedVirtualIOServer → BackingDeviceChoice →
-          HighAvailabilityMode → JumboFramesEnabled → QualityOfServiceMode →
+          JumboFramesEnabled → QualityOfServiceMode →
           TrunkAdapters (empty) → IsPrimary
 
         DeviceName inside EthernetBackingDevice must use kb="ROR" per HMC schema.
 
         cfg is a dict with optional key: backing_device.
-        (ip_address, netmask, address_to_ping, and large_send are not accepted
-        by the HMC PUT schema at create time.)
+        (ip_address, netmask, address_to_ping, large_send, and
+        high_availability_mode are not accepted by the HMC PUT schema at create time.)
         """
         primary_str = 'true' if is_primary else 'false'
         parts = ['<SharedEthernetAdapter schemaVersion="V1_0">',
@@ -3779,10 +3779,7 @@ class HmcRestClient:
                       '<DeviceName kb="ROR" kxe="false">{0}</DeviceName>'.format(backing),
                       '</EthernetBackingDevice>',
                       '</BackingDeviceChoice>']
-        # HighAvailabilityMode — must come after BackingDeviceChoice, before JumboFramesEnabled
-        if ha_mode is not None:
-            parts.append('<HighAvailabilityMode kb="CUD" kxe="false">{0}</HighAvailabilityMode>'.format(ha_mode))
-        # JumboFramesEnabled — must come after HighAvailabilityMode, before TrunkAdapters
+        # JumboFramesEnabled — must come after BackingDeviceChoice, before TrunkAdapters
         if jumbo_frames is not None:
             jf_str = 'true' if jumbo_frames else 'false'
             parts.append('<JumboFramesEnabled kb="UOD" kxe="false">{0}</JumboFramesEnabled>'.format(jf_str))
@@ -3853,14 +3850,12 @@ class HmcRestClient:
                           '<SharedEthernetAdapters kxe="false" kb="CUD" schemaVersion="V1_0">',
                           '<Metadata><Atom/></Metadata>']
         payload_parts += self._sea_xml(vios_href, is_primary=True, cfg=vios1_cfg,
-                                       jumbo_frames=jumbo_frames, qos_mode=qos_mode,
-                                       ha_mode=vios1_cfg.get('ha_mode') if vios1_cfg else None)
+                                       jumbo_frames=jumbo_frames, qos_mode=qos_mode)
         if vios2_id:
             vios2_href = "https://{0}/rest/api/uom/ManagedSystem/{1}/VirtualIOServer/{2}".format(
                 self.hmc_ip, system_uuid, vios2_id)
             payload_parts += self._sea_xml(vios2_href, is_primary=False, cfg=vios2_cfg or {},
-                                           jumbo_frames=jumbo_frames, qos_mode=qos_mode,
-                                           ha_mode=(vios2_cfg or {}).get('ha_mode'))
+                                           jumbo_frames=jumbo_frames, qos_mode=qos_mode)
         payload_parts += ['</SharedEthernetAdapters>',
                           '</NetworkBridge>']
         payload = ''.join(payload_parts)
@@ -3906,29 +3901,53 @@ class HmcRestClient:
         except Exception:
             raise
 
-    def updateNetworkBridgeSEAs(self, system_uuid, bridge_uuid, bridge_dom, large_send):
-        """POST a full NetworkBridge DOM back after patching LargeSend on each SEA.
+    def updateNetworkBridgeSEAs(self, system_uuid, bridge_uuid, bridge_dom,
+                                large_send, vios1_ha_mode=None, vios2_ha_mode=None):
+        """POST a full NetworkBridge DOM back after patching per-SEA fields.
 
-        Called only from ensure_present (create). LargeSend cannot be set in the
-        CREATE PUT payload because the XSD requires IIDPService/ConfigurationState
-        before it — both are HMC-generated read-only fields absent at create time.
+        Called only from ensure_present (create). LargeSend and HighAvailabilityMode
+        cannot be set in the CREATE PUT payload:
+          - LargeSend requires IIDPService/ConfigurationState (HMC-generated, absent
+            at create time).
+          - HighAvailabilityMode is accepted by the HMC only on an already-created
+            bridge via a follow-up POST.
         jumbo_frames and qos_mode are handled directly in the CREATE PUT.
+
+        vios1_ha_mode / vios2_ha_mode map to the primary (IsPrimary=true) and
+        secondary (IsPrimary=false) SEAs respectively.  The element is upserted —
+        created if absent, updated if already present.
         """
         url = "https://{0}/rest/api/uom/ManagedSystem/{1}/NetworkBridge/{2}".format(
             self.hmc_ip, system_uuid, bridge_uuid)
         header = {'X-API-Session': self.session,
                   'Content-Type': 'application/vnd.ibm.powervm.uom+xml; type=NetworkBridge',
                   'Accept': 'application/atom+xml'}
-        large_send_str = 'true' if large_send else 'false'
         NS = "http://www.ibm.com/xmlns/systems/power/firmware/uom/mc/2012_10/"
         for sea in bridge_dom.xpath("//SharedEthernetAdapter"):
-            elem = sea.find("{%s}LargeSend" % NS)
-            if elem is None:
-                elem = sea.xpath('LargeSend')
-                if elem:
-                    elem[0].text = large_send_str
-            else:
-                elem.text = large_send_str
+            # --- LargeSend ---
+            if large_send is not None:
+                large_send_str = 'true' if large_send else 'false'
+                elem = sea.find("{%s}LargeSend" % NS)
+                if elem is None:
+                    elem = sea.xpath('LargeSend')
+                    if elem:
+                        elem[0].text = large_send_str
+                else:
+                    elem.text = large_send_str
+
+            # --- HighAvailabilityMode (upsert) ---
+            is_primary_elem = sea.xpath('IsPrimary')
+            is_primary = (is_primary_elem[0].text.lower() == 'true') if is_primary_elem else True
+            ha_mode = vios1_ha_mode if is_primary else vios2_ha_mode
+            if ha_mode is not None:
+                ha_elems = sea.xpath('HighAvailabilityMode')
+                if ha_elems:
+                    ha_elems[0].text = ha_mode
+                else:
+                    ha_el = etree.SubElement(sea, 'HighAvailabilityMode')
+                    ha_el.set('kb', 'CUD')
+                    ha_el.set('kxe', 'false')
+                    ha_el.text = ha_mode
         nb_elem = bridge_dom.xpath("//NetworkBridge")
         if not nb_elem:
             return None
