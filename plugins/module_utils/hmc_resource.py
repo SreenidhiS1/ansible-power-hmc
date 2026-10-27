@@ -1100,7 +1100,9 @@ class Hmc():
 
     def create_rules_command(self, params):
         opr = params['state']
-        rules_cmd = self.CMD['RULES'] + self.OPT['RULES']['-O'] + opr
+        # Map Ansible state name to the actual VIOS rules -o operation value
+        vios_opr = 'list' if opr == 'rule_list' else opr
+        rules_cmd = self.CMD['RULES'] + self.OPT['RULES']['-O'] + vios_opr
 
         if opr in ('add', 'modify', 'delete'):
             if params['device_instance'] is not None:
@@ -1110,11 +1112,11 @@ class Hmc():
             if params['attribute'] is not None:
                 rules_cmd += self.OPT['RULES']['-A'] + str(params['attribute'])
 
-        if opr in ('deploy', 'list', 'diff'):
+        if opr in ('deploy', 'rule_list', 'diff'):
             if params.get('default_rules'):
                 rules_cmd += self.OPT['RULES']['-D']
 
-        if opr in ('list', 'diff'):
+        if opr in ('rule_list', 'diff'):
             if params.get('system_settings'):
                 rules_cmd += self.OPT['RULES']['-S']
 
@@ -1122,7 +1124,7 @@ class Hmc():
             if params.get('show_count'):
                 rules_cmd += self.OPT['RULES']['-N']
 
-        if opr in ('import', 'list', 'diff', 'add', 'modify', 'delete'):
+        if opr in ('import', 'rule_list', 'diff', 'add', 'modify', 'delete'):
             if params.get('rules_file') is not None:
                 rules_cmd += self.OPT['RULES']['-F'] + str(params['rules_file'])
 

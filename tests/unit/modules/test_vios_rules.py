@@ -113,19 +113,19 @@ test_data_import = [
 # ---------------------------------------------------------------------------
 test_data_list = [
     # missing hmc_host
-    (_p('list', hmc_host=None),
+    (_p('rule_list', hmc_host=None),
      "ParameterError: mandatory parameter 'hmc_host' is missing"),
 
     # unsupported parameter: force
-    (_p('list', force=True),
+    (_p('rule_list', force=True),
      "ParameterError: unsupported parameter: force"),
 
     # unsupported parameter: show_count
-    (_p('list', show_count=True),
+    (_p('rule_list', show_count=True),
      "ParameterError: unsupported parameter: show_count"),
 
     # mutually exclusive: default_rules and system_settings
-    (_p('list', default_rules=True, system_settings=True),
+    (_p('rule_list', default_rules=True, system_settings=True),
      "ParameterError: 'default_rules' and 'system_settings' are mutually exclusive"),
 ]
 

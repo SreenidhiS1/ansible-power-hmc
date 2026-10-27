@@ -68,7 +68,7 @@ options:
               The new setting does not take effect until system reboot.
             - C(import) imports a user-specified rules file to VIOS current rules. Use I(rules_file) to
               specify the file. Use I(force) to skip ioslevel compatibility checking.
-            - C(list) lists and views the rules file contents or system configuration based on the rules template.
+            - C(rule_list) lists and views the rules file contents or system configuration based on the rules template.
             - C(diff) lists the mismatch devices and attributes. Use I(show_count) to show the number of
               differences numerically, and I(system_settings) to include the current system settings.
             - C(add) adds a new rule to the VIOS current rules or a user-specified rules file.
@@ -79,7 +79,7 @@ options:
               Either I(device_instance) or I(device_type) must be specified along with I(attribute).
         type: str
         required: true
-        choices: ['capture', 'deploy', 'import', 'list', 'diff', 'add', 'modify', 'delete']
+        choices: ['capture', 'deploy', 'import', 'rule_list', 'diff', 'add', 'modify', 'delete']
     device_instance:
         description:
             - The device instance name used to search for the device type (class/subclass/type) in ODM.
@@ -177,7 +177,7 @@ EXAMPLES = '''
     hmc_auth: "{{ hmc_auth }}"
     system_name: <sys>
     vios_name: <vios>
-    state: list
+    state: rule_list
 
 - name: List default rules
   ibm.power_hmc.vios_rules:
@@ -186,7 +186,7 @@ EXAMPLES = '''
     system_name: <sys>
     vios_name: <vios>
     default_rules: true
-    state: list
+    state: rule_list
 
 - name: List current system settings
   ibm.power_hmc.vios_rules:
@@ -195,7 +195,7 @@ EXAMPLES = '''
     system_name: <sys>
     vios_name: <vios>
     system_settings: true
-    state: list
+    state: rule_list
 
 - name: Show diff between system settings and current rules
   ibm.power_hmc.vios_rules:
@@ -309,7 +309,7 @@ def validate_parameters(params):
         if params['rules_file'] is None:
             raise ParameterError("mandatory parameter 'rules_file' is missing for import operation")
 
-    elif opr == 'list':
+    elif opr == 'rule_list':
         unsupportedList = ['device_instance', 'device_type', 'attribute',
                            'show_count', 'force']
         if params['default_rules'] and params['system_settings']:
@@ -463,7 +463,7 @@ def perform_task(module):
         'capture': capture,
         'deploy': deploy,
         'import': import_rules,
-        'list': list_rules,
+        'rule_list': list_rules,
         'diff': diff_rules,
         'add': add_rule,
         'modify': modify_rule,
@@ -493,7 +493,7 @@ def run_module():
         vios_name=dict(type='str', required=True),
         state=dict(type='str',
                    required=True,
-                   choices=['capture', 'deploy', 'import', 'list',
+                   choices=['capture', 'deploy', 'import', 'rule_list',
                             'diff', 'add', 'modify', 'delete']),
         device_instance=dict(type='str'),
         device_type=dict(type='str'),
