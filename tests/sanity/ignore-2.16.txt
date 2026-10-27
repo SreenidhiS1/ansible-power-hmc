@@ -47,3 +47,5 @@ plugins/modules/vios_update_upgrade.py compile-2.7!skip # Python 2.7 is not supp
 plugins/modules/vios_update_upgrade.py import-2.7!skip # Python 2.7 is not supported
 plugins/modules/power_network_bridge.py compile-2.7!skip # Python 2.7 is not supported
 plugins/modules/power_network_bridge.py import-2.7!skip # Python 2.7 is not supported
+plugins/modules/vios_rules.py compile-2.7!skip # Python 2.7 is not supported
+plugins/modules/vios_rules.py import-2.7!skip # Python 2.7 is not supported
