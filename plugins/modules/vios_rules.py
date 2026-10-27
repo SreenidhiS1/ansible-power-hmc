@@ -306,8 +306,6 @@ def validate_parameters(params):
     elif opr == 'import':
         unsupportedList = ['device_instance', 'device_type', 'attribute',
                            'default_rules', 'show_count', 'system_settings']
-        if params['rules_file'] is None:
-            raise ParameterError("mandatory parameter 'rules_file' is missing for import operation")
 
     elif opr == 'rule_list':
         unsupportedList = ['device_instance', 'device_type', 'attribute',
@@ -350,6 +348,9 @@ def validate_parameters(params):
             raise ParameterError("unsupported parameter: %s" % (collate[0]))
         else:
             raise ParameterError("unsupported parameters: %s" % (', '.join(collate)))
+
+    if opr == 'import' and params['rules_file'] is None:
+        raise ParameterError("mandatory parameter 'rules_file' is missing for import operation")
 
 
 def _setup_hmc(module, params):
