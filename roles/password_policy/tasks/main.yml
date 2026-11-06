@@ -70,5 +70,9 @@
           username: "{{ password_policy_hmc_username }}"
           password: "{{ password_policy_hmc_password }}"
       attributes: "{{ password_policy_user_password }}"
-  loop: "{{ password_policy_userslist.command_output | reject('equalto', password_policy_hmc_username) | reject('equalto', 'VALUE_SPECIFIED_IN_NO_LOG_PARAMETER') | list }}"
+  loop: >-
+    {{ password_policy_userslist.command_output
+    | reject('equalto', password_policy_hmc_username)
+    | reject('equalto', 'VALUE_SPECIFIED_IN_NO_LOG_PARAMETER')
+    | list }}
   when: password_policy_password_change is true
