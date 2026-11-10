@@ -1169,3 +1169,18 @@ class Hmc():
         else:
             cmd += self.OPT['LSMAP']['-ALL']
         cmd += ' -fmt' + ' , '
+
+    def create_viosbr_command(self, action, attributes):
+        # action is 'list' or 'view'; attributes is the module 'attributes' dict
+        viosbr_cmd = self.CMD['VIOSBR'] + self.OPT['VIOSBR']['-VIEW']
+        if action == 'list':
+            viosbr_cmd += self.OPT['VIOSBR']['-LIST']
+            if attributes.get('dir') is not None:
+                viosbr_cmd += str(attributes['dir'])
+        elif action == 'view':
+            viosbr_cmd += self.OPT['VIOSBR']['-FILE'] + str(attributes['view_backup_file'])
+            if attributes.get('devtype') is not None:
+                viosbr_cmd += self.OPT['VIOSBR']['-TYPE'] + str(attributes['devtype'])
+            if attributes.get('mapping'):
+                viosbr_cmd += self.OPT['VIOSBR']['-MAPPING']
+        return viosbr_cmd.strip()
