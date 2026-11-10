@@ -88,28 +88,6 @@ options:
             - The name of the Virtual I/O Server.
         required: true
         type: str
-    state:
-        description:
-            - C(capture) captures the current system configuration on the VIOS. If current rules exist,
-              the new captured configuration overwrites them; otherwise, factory default rules are used
-              as a template.
-            - C(deploy) applies the recommended factory default rules or current rules on the VIOS.
-              If no current rules exist, a new rules file is created based on current system settings.
-              The new setting does not take effect until system reboot.
-            - C(import) imports a user-specified rules file to VIOS current rules. Use I(rules_file) to
-              specify the file. Use I(force) to skip ioslevel compatibility checking.
-            - C(rule_list) lists and views the rules file contents or system configuration based on the rules template.
-            - C(diff) lists the mismatch devices and attributes. Use I(show_count) to show the number of
-              differences numerically, and I(system_settings) to include the current system settings.
-            - C(add) adds a new rule to the VIOS current rules or a user-specified rules file.
-              Either I(device_instance) or I(device_type) must be specified along with I(attribute).
-            - C(modify) modifies an existing rule from the current rules or user-specified rules file.
-              Either I(device_instance) or I(device_type) must be specified along with I(attribute).
-            - C(delete) deletes a rule from current rules or a user-specified rules file.
-              Either I(device_instance) or I(device_type) must be specified along with I(attribute).
-        type: str
-        required: true
-        choices: ['capture', 'deploy', 'import', 'rule_list', 'diff', 'add', 'modify', 'delete']
     device_instance:
         description:
             - The device instance name used to search for the device type (class/subclass/type) in ODM.
@@ -154,6 +132,28 @@ options:
               are encountered (e.g. ioslevel incompatibility).
             - Valid for the C(import) state only.
         type: bool
+    state:
+        description:
+            - C(capture) captures the current system configuration on the VIOS. If current rules exist,
+              the new captured configuration overwrites them; otherwise, factory default rules are used
+              as a template.
+            - C(deploy) applies the recommended factory default rules or current rules on the VIOS.
+              If no current rules exist, a new rules file is created based on current system settings.
+              The new setting does not take effect until system reboot.
+            - C(import) imports a user-specified rules file to VIOS current rules. Use I(rules_file) to
+              specify the file. Use I(force) to skip ioslevel compatibility checking.
+            - C(rule_list) lists and views the rules file contents or system configuration based on the rules template.
+            - C(diff) lists the mismatch devices and attributes. Use I(show_count) to show the number of
+              differences numerically, and I(system_settings) to include the current system settings.
+            - C(add) adds a new rule to the VIOS current rules or a user-specified rules file.
+              Either I(device_instance) or I(device_type) must be specified along with I(attribute).
+            - C(modify) modifies an existing rule from the current rules or user-specified rules file.
+              Either I(device_instance) or I(device_type) must be specified along with I(attribute).
+            - C(delete) deletes a rule from current rules or a user-specified rules file.
+              Either I(device_instance) or I(device_type) must be specified along with I(attribute).
+        type: str
+        required: true
+        choices: ['capture', 'deploy', 'import', 'rule_list', 'diff', 'add', 'modify', 'delete']
 '''
 
 EXAMPLES = '''
@@ -522,10 +522,6 @@ def run_module():
                       )),
         system_name=dict(type='str', required=True),
         vios_name=dict(type='str', required=True),
-        state=dict(type='str',
-                   required=True,
-                   choices=['capture', 'deploy', 'import', 'rule_list',
-                            'diff', 'add', 'modify', 'delete']),
         device_instance=dict(type='str'),
         device_type=dict(type='str'),
         attribute=dict(type='str'),
@@ -534,6 +530,10 @@ def run_module():
         system_settings=dict(type='bool'),
         rules_file=dict(type='str'),
         force=dict(type='bool'),
+        state=dict(type='str',
+                   required=True,
+                   choices=['capture', 'deploy', 'import', 'rule_list',
+                            'diff', 'add', 'modify', 'delete']),
     )
 
     module = AnsibleModule(
