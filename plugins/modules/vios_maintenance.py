@@ -19,12 +19,16 @@ author:
 short_description: Manage the vios backup
 notes:
     - All Operations support passwordless authentication.
+    - The C(list) and C(view) actions are performed directly on the VIOS
+    - Exactly one of C(state) or C(action) must be provided.
 description:
     - Create a VIOS backup file
     - List VIOS backup file details
     - Modify the name of the VIOS backup file
     - Remove a VIOS backup file
     - Restore a VIOS backup
+    - List the viosbr backup files present on the VIOS
+    - View the contents of a viosbr backup file present on the VIOS
 version_added: 1.0.0
 options:
     hmc_host:
@@ -58,8 +62,8 @@ options:
                     - The type of VIOS backup to create.
                     - Valid values are C(viosioconfig) for a VIOS I/O configuration backup,
                       C(vios) for a full VIOS backup, C(ssp) for a Shared Storage Pool configuration backup.
+                    - Mandatory for C(state) operations other than C(facts). Not supported with C(action).
                 type: str
-                required: true
                 choices: ['vios', 'viosioconfig', 'ssp']
             system:
                 description:
@@ -79,6 +83,7 @@ options:
                 description:
                     - The name of the VIOS to backup.
                       vios_id, vios_uuid, vios_name are mutually exclusive.
+                    - Mandatory for C(action). Only I(vios_name) is supported with C(action).
                 type: str
             backup_name:
                 description:
@@ -123,6 +128,41 @@ options:
                     - The attributes to change the name of the backup file.
                       Valid for C(modify) state only.
                 type: str
+            dir:
+                description:
+                    - User-specified directory on the VIOS from where the backup files are listed.
+                    - Defaults to C(/home/padmin/cfgbackups) on the VIOS.
+                    - Valid for C(list) action only.
+                type: str
+            view_backup_file:
+                description:
+                    - The viosbr backup file present on the VIOS whose information is to be viewed.
+                    - If a relative path is given, the VIOS resolves it under C(/home/padmin/cfgbackups).
+                    - Mandatory for C(view) action.
+                type: str
+            mapping:
+                description:
+                    - Displays mapping information for SEA, virtual SCSI adapters, VFC adapters,
+                      and PowerVM Active Memory Sharing paging devices.
+                    - Valid for C(view) action only.
+                    - Mutually exclusive with I(devtype).
+                type: bool
+            devtype:
+                description:
+                    - Only display the devices of the specified type.
+                    - Valid for C(view) action only.
+                    - Mutually exclusive with I(mapping).
+                type: str
+                choices: ['pv', 'optical', 'tape', 'controller', 'interface', 'sp', 'fbsp', 'repository',
+                          'ethchannel', 'sea', 'svsa', 'svfca', 'vlogrepo', 'pool', 'paging']
+    action:
+        description:
+            - Operations performed directly on the VIOS using the C(viosbr) command, through the HMC.
+            - C(list) does not change anything and returns the listing of viosbr backup files present on the VIOS.
+            - C(view) does not change anything and returns the information of a viosbr backup file present on the VIOS.
+            - Mutually exclusive with C(state).
+        type: str
+        choices: ['list', 'view']
     state:
         description:
             - C(facts) does not change anything on the HMC and returns list of backup files of a VIOS.
@@ -187,6 +227,42 @@ EXAMPLES = '''
       system: <sys>
       types: viosioconfig
     state: modify
+
+- name: List the viosbr backup files present in the default directory of the VIOS
+  ibm.power_hmc.vios_maintenance:
+    hmc_host: "{{ inventory_hostname }}"
+    hmc_auth:
+      username: '{{ ansible_user }}'
+      password: '{{ hmc_password }}'
+    attributes:
+      vios_name: <vios name>
+      system: <sys>
+    action: list
+
+- name: List the viosbr backup files present in a user-specified directory of the VIOS
+  ibm.power_hmc.vios_maintenance:
+    hmc_host: "{{ inventory_hostname }}"
+    hmc_auth:
+      username: '{{ ansible_user }}'
+      password: '{{ hmc_password }}'
+    attributes:
+      vios_name: <vios name>
+      system: <sys>
+      dir: /tmp/backups
+    action: list
+
+- name: View the mapping information of a viosbr backup file present on the VIOS
+  ibm.power_hmc.vios_maintenance:
+    hmc_host: "{{ inventory_hostname }}"
+    hmc_auth:
+      username: '{{ ansible_user }}'
+      password: '{{ hmc_password }}'
+    attributes:
+      vios_name: <vios name>
+      system: <sys>
+      view_backup_file: systemA.backup.tar.gz
+      mapping: true
+    action: view
 '''
 
 RETURN = '''
@@ -198,6 +274,7 @@ command_output:
 
 import logging
 import os
+import re
 LOG_FILENAME = "/tmp/ansible_power_hmc_{0}.log".format(os.getpid())
 logger = logging.getLogger(__name__)
 from ansible.module_utils.basic import AnsibleModule
@@ -225,24 +302,37 @@ def validate_sub_params(params):
     opr = None
     unsupportedList = []
     mandatoryList = []
-    opr = params['state']
+    opr = params['state'] or params.get('action')
 
     if opr == 'present':
         params = params['attributes']
         mandatoryList = ['types', 'system', 'backup_name']
-        unsupportedList = ['restart', 'new_name']
+        unsupportedList = ['restart', 'new_name', 'dir', 'view_backup_file', 'mapping', 'devtype']
     if opr == 'restore':
         params = params['attributes']
         mandatoryList = ['types', 'system', 'backup_name']
-        unsupportedList = ['nimol_resource', 'media_repository', 'volume_group_structure', 'file_list', 'new_name']
+        unsupportedList = ['nimol_resource', 'media_repository', 'volume_group_structure', 'file_list', 'new_name',
+                           'dir', 'view_backup_file', 'mapping', 'devtype']
     if opr == 'absent':
         params = params['attributes']
         mandatoryList = ['types', 'system', 'file_list']
-        unsupportedList = ['restart', 'nimol_resource', 'media_repository', 'volume_group_structure', 'backup_name', 'new_name']
+        unsupportedList = ['restart', 'nimol_resource', 'media_repository', 'volume_group_structure', 'backup_name', 'new_name',
+                           'dir', 'view_backup_file', 'mapping', 'devtype']
     if opr == 'modify':
         params = params['attributes']
         mandatoryList = ['types', 'system', 'backup_name', 'new_name']
-        unsupportedList = ['restart', 'nimol_resource', 'media_repository', 'volume_group_structure', 'file_list']
+        unsupportedList = ['restart', 'nimol_resource', 'media_repository', 'volume_group_structure', 'file_list',
+                           'dir', 'view_backup_file', 'mapping', 'devtype']
+    if opr == 'list':
+        params = params['attributes']
+        mandatoryList = ['system', 'vios_name']
+        unsupportedList = ['types', 'vios_id', 'vios_uuid', 'backup_name', 'file_list', 'nimol_resource', 'media_repository',
+                           'volume_group_structure', 'restart', 'new_name', 'view_backup_file', 'mapping', 'devtype']
+    if opr == 'view':
+        params = params['attributes']
+        mandatoryList = ['system', 'vios_name', 'view_backup_file']
+        unsupportedList = ['types', 'vios_id', 'vios_uuid', 'backup_name', 'file_list', 'nimol_resource', 'media_repository',
+                           'volume_group_structure', 'restart', 'new_name', 'dir']
 
     if opr in ['present', 'restore', 'absent', 'modify']:
         count = sum(x is not None for x in [params['vios_id'], params['vios_uuid'], params['vios_name']])
@@ -266,7 +356,7 @@ def validate_sub_params(params):
 
     collate = []
     for eachUnsupported in unsupportedList:
-        if params[eachUnsupported]:
+        if params.get(eachUnsupported):
             collate.append(eachUnsupported)
 
     if collate:
@@ -274,6 +364,14 @@ def validate_sub_params(params):
             raise ParameterError("unsupported parameter: %s" % (collate[0]))
         else:
             raise ParameterError("unsupported parameters: %s" % (','.join(collate)))
+
+    if opr == 'view' and params.get('devtype') and params.get('mapping'):
+        raise ParameterError("Parameters 'devtype' and 'mapping' are mutually exclusive")
+
+    if opr in ['list', 'view']:
+        for each in ['dir', 'view_backup_file']:
+            if params.get(each) and not re.match(r'^[\w./+-]+$', params[each]):
+                raise ParameterError("parameter '%s' contains unsupported characters" % each)
 
 
 def validate_parameters(params):
@@ -287,7 +385,7 @@ def validate_parameters(params):
     else:
         opr = params['action']
 
-    if opr in ['present', 'restore']:
+    if opr in ['present', 'restore', 'list', 'view']:
         mandatoryList = ['hmc_host', 'hmc_auth', 'attributes']
 
     collate = []
@@ -562,6 +660,39 @@ def ensure_modify(module, params):
                 return changed, None, None
 
 
+def viosbr_action(module, params):
+    '''Run viosbr list/view directly on the VIOS through the HMC'''
+    hmc_host = params['hmc_host']
+    hmc_user = params['hmc_auth']['username']
+    password = params['hmc_auth']['password']
+
+    validate_parameters(params)
+    attributes = params.get('attributes')
+    hmc_conn = HmcCliConnection(module, hmc_host, hmc_user, password)
+    hmc = Hmc(hmc_conn)
+
+    m_system = attributes['system']
+    vios_name = attributes['vios_name']
+    sys_list = (
+        hmc_conn.execute("lssyscfg -r sys -F name").splitlines() + hmc_conn.execute("lssyscfg -r sys -F type_model*serial_num").splitlines()
+    )
+    if m_system not in sys_list:
+        module.fail_json(msg="The managed system is not available in HMC")
+    vios_list = hmc_conn.execute("lssyscfg -r lpar -m {0} -F name".format(m_system)).splitlines()
+    if vios_name not in vios_list:
+        module.fail_json(msg="The vios is not available in the managed system")
+
+    cmd = hmc.create_viosbr_command(params['action'], attributes)
+    try:
+        result = hmc.runCommandOnVIOS(m_system, vios_name, cmd, False)
+    except HmcError as error:
+        if USER_AUTHORITY_ERR in repr(error):
+            logger.debug(repr(error))
+            return False, None, None
+        raise
+    return False, result.splitlines() if result else [], None
+
+
 def perform_task(module):
     params = module.params
     actions = {
@@ -570,12 +701,14 @@ def perform_task(module):
         "restore": ensure_restore,
         "absent": ensure_absent,
         "modify": ensure_modify,
+        "list": viosbr_action,
+        "view": viosbr_action,
     }
 
     if not params['hmc_auth']:
         return False, "missing credential info", None
     try:
-        return actions[params['state']](module, params)
+        return actions[params['state'] or params['action']](module, params)
     except Exception as error:
         return False, repr(error), None
 
@@ -592,10 +725,11 @@ def run_module():
                       )
                       ),
         state=dict(type='str', choices=['facts', 'present', 'absent', 'restore', 'modify']),
+        action=dict(type='str', choices=['list', 'view']),
         attributes=dict(type='dict',
                         required=True,
                         options=dict(
-                            types=dict(required=True, type='str', choices=['viosioconfig', 'vios', 'ssp']),
+                            types=dict(type='str', choices=['viosioconfig', 'vios', 'ssp']),
                             system=dict(type='str'),
                             vios_id=dict(type='str'),
                             vios_uuid=dict(type='str'),
@@ -606,13 +740,20 @@ def run_module():
                             media_repository=dict(type='int', choices=[0, 1]),
                             volume_group_structure=dict(type='int', choices=[0, 1]),
                             restart=dict(type='bool'),
-                            new_name=dict(type='str')
+                            new_name=dict(type='str'),
+                            dir=dict(type='str'),
+                            view_backup_file=dict(type='str'),
+                            mapping=dict(type='bool'),
+                            devtype=dict(type='str', choices=['pv', 'optical', 'tape', 'controller', 'interface', 'sp', 'fbsp', 'repository',
+                                                              'ethchannel', 'sea', 'svsa', 'svfca', 'vlogrepo', 'pool', 'paging'])
                         )
                         ),
     )
 
     module = AnsibleModule(
         argument_spec=module_args,
+        mutually_exclusive=[('state', 'action')],
+        required_one_of=[('state', 'action')],
     )
 
     if module._verbosity >= 5:
