@@ -64,6 +64,7 @@ class HmcCommandStack():
                'LSSVCEVENTS': 'lssvcevents',
                'VIOSECURE': 'viosecure',
                'LSMAP': 'lsmap',
+               'VIOSBR': 'viosbr',
                }
 
     HMC_CMD_OPT = {'LSHMC': {'-N': ' -n ',
@@ -560,7 +561,12 @@ class HmcCommandStack():
                              '-VTD': ' -vtd ',
                              '-SUSPEND': ' -suspend ',
                              '-CLUSTERNAME': '-clustername',
-                             '-HOSTNAME': '-hostname'}
+                             '-HOSTNAME': '-hostname'},
+                   'VIOSBR': {'-VIEW': ' -view ',
+                              '-LIST': ' -list ',
+                              '-FILE': ' -file ',
+                              '-TYPE': ' -type ',
+                              '-MAPPING': ' -mapping '},
                    }
 
     def filterBuilder(self, cmdKey, configOptionsDict):
